@@ -9,8 +9,9 @@ export interface AuthSession {
   currentTenantId: TenantId | null
 }
 
-/** Authentication adapter used to restore and clear the current session. */
+/** Authentication adapter used to enter, restore, and clear the current session. */
 export interface AuthPort {
+  signIn(): Promise<AuthSession>
   restore(): Promise<AuthSession | null>
   signOut(): Promise<void>
 }

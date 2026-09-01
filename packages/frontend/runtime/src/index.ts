@@ -27,6 +27,8 @@ export interface AdminRuntime<Services extends AppServices = AppServices> {
   readonly modules: readonly AdminModule[]
   readonly services: Services
   readonly state: DeepReadonly<AdminRuntimeState>
+  /** Establish a session through the configured authentication adapter. */
+  signIn(): Promise<void>
   initialize(): Promise<void>
   can(permission?: string): boolean
   getNavigation(): NavigationItem[]
@@ -69,6 +71,9 @@ export function createAdminRuntime<Services extends AppServices>(options: Create
     modules: options.modules,
     services: options.services,
     state: readonly(state),
+    async signIn() {
+      setSession(await options.auth.signIn())
+    },
     async initialize() {
       setSession(await options.auth.restore())
       state.ready = true

@@ -69,6 +69,9 @@ const currentSession: AuthSession = {
 
 /** A deterministic local auth adapter lets the skeleton run without a backend. */
 export const authAdapter: AuthPort = {
+  async signIn() {
+    return currentSession
+  },
   async restore() {
     return currentSession
   },

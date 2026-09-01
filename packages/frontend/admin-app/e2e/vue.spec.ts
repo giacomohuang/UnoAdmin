@@ -12,3 +12,14 @@ test('refreshes a deep link through the SPA fallback', async ({ page }) => {
   await page.reload()
   await expect(page.locator('h1')).toHaveText('用户管理')
 })
+
+// Verify the demo sign-in action rebuilds the session after logout.
+test('re-enters the demo after signing out', async ({ page }) => {
+  await page.goto('/dashboard')
+  await page.getByRole('button', { name: '退出登录' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+
+  await page.getByRole('button', { name: '进入演示' }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page.locator('h1')).toHaveText('工作台')
+})

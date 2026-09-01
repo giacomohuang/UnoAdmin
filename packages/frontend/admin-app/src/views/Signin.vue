@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useAdminRuntime } from '@unoadmin/runtime'
 
 const router = useRouter()
+const runtime = useAdminRuntime()
 
-/** The demo sign-in screen keeps the local adapter session and enters the SPA. */
+/** Restore the local demo session before navigating past the auth guard. */
 async function enterWorkspace() {
+  await runtime.signIn()
   await router.push('/dashboard')
 }
 </script>

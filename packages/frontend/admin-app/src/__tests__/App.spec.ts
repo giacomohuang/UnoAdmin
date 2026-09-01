@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
+import { authAdapter, appServices } from '../adapters/mock'
 import { installRouterGuards } from '../router/guards'
+import { createAdminRuntime } from '@unoadmin/runtime'
 
 describe('generated application route contract', () => {
   it('contains base and demo package pages', () => {
@@ -51,5 +53,22 @@ describe('generated application route contract', () => {
     state.user = { id: 'user-1' }
     await router.push('/private')
     expect(router.currentRoute.value.name).toBe('forbidden')
+  })
+
+  // Re-entering the demo after logout must restore the session before routing.
+  it('restores the demo session after sign-out', async () => {
+    const runtime = createAdminRuntime({
+      auth: authAdapter,
+      branding: { productName: 'UnoAdmin', productMark: 'U' },
+      modules: [],
+      services: appServices,
+    })
+
+    await runtime.initialize()
+    await runtime.signOut()
+    expect(runtime.state.user).toBeNull()
+
+    await runtime.signIn()
+    expect(runtime.state.user?.username).toBe('lin.wei')
   })
 })
