@@ -1,0 +1,12 @@
+.VSCodeCounter/
+.workbuddy/
+.local/
+.playwright-cli/
+.pnpm-store/
+.runtime/
+.pids/
+.github/
+.DS_Store
+node_modules/
+dist/
+logs/

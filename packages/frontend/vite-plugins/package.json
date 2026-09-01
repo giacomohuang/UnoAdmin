@@ -1,0 +1,18 @@
+{
+  "name": "@unoadmin/vite-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "author": "",
+  "type": "module",
+  "exports": {
+    "./routes-generator": "./routes-generator/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit --module preserve --moduleResolution bundler --target ES2022 --skipLibCheck routes-generator/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.0",
+    "vite": "^8.2.2"
+  }
+}

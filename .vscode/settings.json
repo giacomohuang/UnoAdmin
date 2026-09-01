@@ -1,0 +1,58 @@
+{
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "oxc.typeAware": true,
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.format.oxc": "always", // run formatter first
+    "source.fixAll.oxc": "always" // run lint fixes after
+  },
+
+  "files.watcherExclude": {
+    "target/": true,
+    "node_modules/": true,
+    "dist/": true,
+    "build/": true
+  },
+  "search.exclude": {
+    "target/": true,
+    "node_modules/": true,
+    "dist/": true,
+    "build/": true
+  },
+  "files.exclude": {
+    "target/": true,
+    "node_modules/": true,
+    "dist/": true,
+    "build/": true
+  },
+  "VSCodeCounter.exclude": [".gitignore", ".vscode/", "node_modules/", "pnpm*.*", "dist/**", "*.svg"],
+  "[vue]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "file": ".copilot-commit-message-instructions.md"
+    }
+  ],
+  "i18n-ally.keystyle": "nested"
+}
