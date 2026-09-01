@@ -31,6 +31,10 @@
       "types": "./src/auth.ts",
       "import": "./src/auth.ts"
     },
+    "./http": {
+      "types": "./src/http.ts",
+      "import": "./src/http.ts"
+    },
     "./composition": {
       "types": "./src/composition.ts",
       "import": "./src/composition.ts"

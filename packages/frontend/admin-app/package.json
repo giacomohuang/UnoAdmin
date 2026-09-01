@@ -18,7 +18,6 @@
     "@unoadmin/admin-base": "workspace:*",
     "@unoadmin/core": "workspace:*",
     "@unoadmin/domain-demo": "workspace:*",
-    "@unoadmin/http": "workspace:*",
     "@unoadmin/runtime": "workspace:*",
     "@unoadmin/ui": "workspace:*",
     "pinia": "^4.0.2",

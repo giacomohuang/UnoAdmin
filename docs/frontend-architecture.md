@@ -36,10 +36,9 @@ UnoAdmin/
 │   │   │   │   ├── adapters/           # 后端 API、存储、上传等适配器
 │   │   │   │   ├── config/             # 环境变量解析和应用配置
 │   │   │   │   └── modules.ts          # base + 业务域模块清单
-│   │   ├── core/                       # 纯 TypeScript 合同和基础类型
+│   │   ├── core/                       # TypeScript 合同、基础类型和 HTTP 客户端
 │   │   ├── runtime/                    # Vue/Pinia/Router 运行时
 │   │   ├── ui/                         # 跨业务公共组件和设计令牌
-│   │   ├── http/                       # HTTP 客户端和请求中间件
 │   │   ├── admin-base/                 # Layout + 用户/权限/角色/租户
 │   │   │   └── src/views/              # 基础包的自动路由页面
 │   │   ├── domain-xxx/                 # 业务域 package，按实际域命名
@@ -70,16 +69,17 @@ packages:
 
 ### 3.1 `@unoadmin/core`
 
-纯 TypeScript 包，禁止依赖 Vue、Pinia、Vue Router、具体 UI 库和具体 HTTP 客户端。它负责定义跨应用都需要理解的合同：
+纯 TypeScript 包，禁止依赖 Vue、Pinia、Vue Router、具体 UI 库和具体后端客户端。它负责定义跨应用都需要理解的合同，并提供不绑定后端的 HTTP 客户端：
 
 - `User`、`Role`、`Permission`、`Tenant` 等领域基础模型。
 - `PermissionCode`、`PermissionSet`、`TenantId` 等标识类型。
 - `AuthPort`、`UserService`、`RoleService`、`PermissionService`、`TenantService`、`FileStoragePort` 等服务端口。
 - `AdminModule`、`NavigationItem`、`PermissionDefinition` 等模块协议。
+- `HttpClient`、`HttpClientOptions` 和 `createHttpClient` 等网络基础设施。
 - 统一错误类型、分页查询参数、分页结果、排序和过滤模型。
 - 当前租户、平台作用域、租户作用域的上下文合同。
 
-这里定义“依赖什么”，不实现“如何请求”。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
+`createHttpClient` 只使用标准 Fetch API，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
 
 ### 3.2 `@unoadmin/runtime`
 
@@ -106,21 +106,9 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 
 公共组件只能通过 props、slots、events 和明确的 port 协作。比如 `FileUpload` 不应直接调用某个业务域的 OSS API，而应接收 `FileStoragePort` 或 `uploader` 属性。
 
-### 3.4 `@unoadmin/http`
+### 3.4 `@unoadmin/admin-base`
 
-网络基础设施包，依赖 `core`，不依赖具体页面。它负责：
-
-- 创建请求客户端、超时、取消、重试和序列化。
-- 注入认证凭证和当前租户标识。
-- 将 HTTP 错误映射为统一错误类型。
-- 处理刷新 Token、登录失效和请求追踪 ID。
-- 暴露可被各应用配置的拦截器和 adapter。
-
-它不应偷偷读取 `localStorage` 或 `import.meta.env`。Token、API 地址、租户 Header 名称等都由应用注入。
-
-### 3.5 `@unoadmin/admin-base`
-
-可发布的基础管理能力包，依赖 `core`、`runtime`、`ui`，可以使用 `http` 的抽象，但不能依赖任何 `domain-*` package。内容包括：
+可发布的基础管理能力包，依赖 `core`、`runtime`、`ui`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
 
 - Layout、侧边导航、顶部栏、面包屑、错误页和权限兜底页面。
 - 用户列表、用户详情/编辑、用户状态和用户角色配置。
@@ -131,7 +119,7 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 
 基础页面只依赖 `BaseServices`，不绑定后端 URL、DTO 命名和认证实现。应用通过 `createAdminBaseModule({ services, branding, features })` 配置它。
 
-### 3.6 `@unoadmin/domain-*`
+### 3.5 `@unoadmin/domain-*`
 
 每个业务域一个 package，例如 `@unoadmin/domain-orders`、`@unoadmin/domain-assets`。每个业务包负责自己的：
 
@@ -140,9 +128,9 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 - 该域的 DTO 到 UI model 的转换。
 - 该域的测试和 mock 数据。
 
-业务域可以依赖 `core`、`runtime`、`ui`、`http`，不能依赖另一个业务域的内部实现。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
+业务域可以依赖 `core`、`runtime`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
 
-### 3.7 `packages/frontend/admin-app`
+### 3.6 `packages/frontend/admin-app`
 
 应用壳是唯一的组合根，负责：
 
@@ -170,10 +158,10 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
      admin-base module     domain-* modules       app adapters
               │                    │                    │
               ├──────────┬─────────┤                    │
-              ▼          ▼         ▼                    ▼
-          runtime       ui       http            后端/API/存储
-              │          │         │
-              └──────────┴─────────┘
+              ▼          ▼                              ▼
+          runtime       ui                         后端/API/存储
+              │          │
+              └──────────┐
                          │
                          ▼
                         core
@@ -488,7 +476,7 @@ pnpm test:e2e
 
 1. 将应用壳放入 `packages/frontend/admin-app`，包名使用 `@unoadmin/admin-app`。
 2. 更新 workspace、TypeScript project references、lint、format 和测试脚本。
-3. 创建 `core`、`runtime`、`ui`、`http` 四个最小 package，先定义 port 和模块合同。
+3. 创建 `core`、`runtime`、`ui` 三个最小 package，先定义 port、HTTP 客户端和模块合同。
 4. 统一 Vue、Router、Pinia 和 UI 组件库版本，避免每个 package 各自选择。
 
 ### 阶段二：提取基础能力

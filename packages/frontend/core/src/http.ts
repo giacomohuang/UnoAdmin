@@ -1,4 +1,4 @@
-import type { TenantId } from '@unoadmin/core'
+import type { TenantId } from './identifiers'
 
 /** Configuration injected by an application-specific HTTP adapter. */
 export interface HttpClientOptions {
