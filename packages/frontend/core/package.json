@@ -6,6 +6,34 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
+    },
+    "./identifiers": {
+      "types": "./src/identifiers.ts",
+      "import": "./src/identifiers.ts"
+    },
+    "./entities": {
+      "types": "./src/entities.ts",
+      "import": "./src/entities.ts"
+    },
+    "./query": {
+      "types": "./src/query.ts",
+      "import": "./src/query.ts"
+    },
+    "./services": {
+      "types": "./src/services.ts",
+      "import": "./src/services.ts"
+    },
+    "./storage": {
+      "types": "./src/storage.ts",
+      "import": "./src/storage.ts"
+    },
+    "./auth": {
+      "types": "./src/auth.ts",
+      "import": "./src/auth.ts"
+    },
+    "./composition": {
+      "types": "./src/composition.ts",
+      "import": "./src/composition.ts"
     }
   },
   "scripts": {
