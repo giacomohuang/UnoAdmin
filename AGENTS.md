@@ -10,3 +10,7 @@
 
 - 新增或修改前端、后端、数据库及测试代码必须添加注释。
 - 前端声明级注释统一使用 JSDoc，Java 声明级注释统一使用 Javadoc。
+
+## 前端packages安装和维护
+
+- 不要手动修改packages.json和pnpm-lock.yaml，而是应该使用`pnpm add <package>`、`pnpm install` 安装。
