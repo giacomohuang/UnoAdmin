@@ -1,6 +1,6 @@
-import type { Permission, Role, Tenant, User } from './entities'
-import type { UserId } from './identifiers'
 import type { ListQuery, PageResult } from './query'
+import type { Permission, Role, Tenant, User } from './types/entities'
+import type { UserId } from './types/identifiers'
 
 /** Service collection required by the reusable base administration package. */
 export interface BaseServices {

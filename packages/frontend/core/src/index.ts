@@ -1,5 +1,5 @@
-export * from './identifiers'
-export * from './entities'
+export * from './types/identifiers'
+export * from './types/entities'
 export * from './query'
 export * from './services'
 export * from './storage'

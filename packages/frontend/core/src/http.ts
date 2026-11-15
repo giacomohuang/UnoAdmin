@@ -1,4 +1,4 @@
-import type { TenantId } from './identifiers'
+import type { TenantId } from './types/identifiers'
 
 /** Configuration injected by an application-specific HTTP adapter. */
 export interface HttpClientOptions {
@@ -28,10 +28,10 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
 
       const response = await fetchImpl(new URL(path, options.baseURL), {
         ...init,
-        headers,
+        headers
       })
       if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
       return (await response.json()) as Response
-    },
+    }
   }
 }

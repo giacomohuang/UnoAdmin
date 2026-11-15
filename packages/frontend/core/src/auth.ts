@@ -1,5 +1,5 @@
-import type { TenantId } from './identifiers'
-import type { Tenant, User } from './entities'
+import type { Tenant, User } from './types/entities'
+import type { TenantId } from './types/identifiers'
 
 /** Authentication state restored by an application-specific auth adapter. */
 export interface AuthSession {
