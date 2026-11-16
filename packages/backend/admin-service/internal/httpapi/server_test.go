@@ -124,10 +124,13 @@ func TestRefreshReturnsNewTokenPair(t *testing.T) {
 }
 
 func TestProtectedRouteRequiresBearer(t *testing.T) {
-	rec := httptest.NewRecorder()
-	handler(&fakeAuth{}, &fakeAdmin{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/users", nil))
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", rec.Code)
+	// 受保护路由注册在同一个认证分组下，逐条确认没有被漏挂鉴权。
+	for _, path := range []string{"/api/v1/users", "/api/v1/roles", "/api/v1/permissions", "/api/v1/tenants"} {
+		rec := httptest.NewRecorder()
+		handler(&fakeAuth{}, &fakeAdmin{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("%s status = %d, want 401", path, rec.Code)
+		}
 	}
 }
 

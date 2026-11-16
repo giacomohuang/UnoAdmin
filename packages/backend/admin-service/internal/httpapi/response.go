@@ -1,9 +1,10 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/unoadmin/admin-service/internal/domain"
 )
@@ -13,21 +14,14 @@ type errorBody struct {
 	Error string `json:"error"`
 }
 
-// writeJSON 写入 JSON 响应。
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	if payload == nil {
-		return
-	}
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		return
-	}
+// writeError 将领域错误翻译成 HTTP 状态码与错误体，供处理器使用。
+func writeError(c *gin.Context, err error) {
+	c.JSON(statusFor(err), errorBody{Error: err.Error()})
 }
 
-// writeError 将领域错误翻译成 HTTP 状态码与错误体。
-func writeError(w http.ResponseWriter, err error) {
-	writeJSON(w, statusFor(err), errorBody{Error: err.Error()})
+// abortWithError 写出错误响应并终止中间件链，供中间件使用。
+func abortWithError(c *gin.Context, err error) {
+	c.AbortWithStatusJSON(statusFor(err), errorBody{Error: err.Error()})
 }
 
 // statusFor 统一定义领域错误到 HTTP 状态码的映射。

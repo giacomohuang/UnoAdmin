@@ -1,7 +1,12 @@
 // Package httpapi 暴露供前端 SPA 调用的 REST API。
 package httpapi
 
-import "net/http"
+import (
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
 
 // Server 持有 REST 层依赖的用例，处理器以方法形式挂载。
 type Server struct {
@@ -9,28 +14,37 @@ type Server struct {
 	admin adminServiceAPI
 }
 
-// NewServer 构造并注册全部路由，返回可直接交给 http.Server 的处理器。
-func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) http.Handler {
-	s := &Server{auth: auth, admin: admin}
-	mux := http.NewServeMux()
+// NewServer 构造并注册全部路由，返回可交给 http.Server 的 Gin 引擎。
+func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) *gin.Engine {
+	// 默认关闭 Gin 的路由转储与调试日志；排查问题时用 GIN_MODE=debug 覆盖。
+	if os.Getenv(gin.EnvGinMode) == "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
-	// 公开路由：登录与健康检查。
-	mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	s := &Server{auth: auth, admin: admin}
+	engine := gin.New()
+	engine.Use(gin.Recovery(), cors(origins))
+
+	// 健康检查不挂在 /api/v1 下，也不做鉴权。
+	engine.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// 公开路由：登录与会话管理。
+	public := engine.Group("/api/v1")
+	public.POST("/auth/login", s.handleLogin)
 	// 会话路由自行校验 Bearer 令牌，因为注销需要令牌 ID 执行吊销。
-	mux.HandleFunc("POST /api/v1/auth/restore", s.handleRestore)
-	mux.HandleFunc("POST /api/v1/auth/refresh", s.handleRefresh)
-	mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
-	mux.HandleFunc("POST /api/v1/auth/switch-tenant", s.handleSwitchTenant)
+	public.POST("/auth/restore", s.handleRestore)
+	public.POST("/auth/refresh", s.handleRefresh)
+	public.POST("/auth/logout", s.handleLogout)
+	public.POST("/auth/switch-tenant", s.handleSwitchTenant)
 
-	// 受保护路由：权限码与前端模块声明保持一致。
-	mux.Handle("GET /api/v1/users", guard(auth, "user:read", http.HandlerFunc(s.handleListUsers)))
-	mux.Handle("PATCH /api/v1/users/{id}/status", guard(auth, "user:write", http.HandlerFunc(s.handleUpdateUserStatus)))
-	mux.Handle("GET /api/v1/roles", guard(auth, "role:read", http.HandlerFunc(s.handleListRoles)))
-	mux.Handle("GET /api/v1/permissions", guard(auth, "", http.HandlerFunc(s.handleListPermissions)))
-	mux.Handle("GET /api/v1/tenants", guard(auth, "tenant:read", http.HandlerFunc(s.handleListTenants)))
-	return cors(origins, mux)
+	// 受保护路由：整组统一认证，再按路由声明权限码。
+	secured := engine.Group("/api/v1", authenticate(s.auth))
+	secured.GET("/users", requirePermission("user:read"), s.handleListUsers)
+	secured.PATCH("/users/:id/status", requirePermission("user:write"), s.handleUpdateUserStatus)
+	secured.GET("/roles", requirePermission("role:read"), s.handleListRoles)
+	secured.GET("/permissions", requirePermission(""), s.handleListPermissions)
+	secured.GET("/tenants", requirePermission("tenant:read"), s.handleListTenants)
+	return engine
 }

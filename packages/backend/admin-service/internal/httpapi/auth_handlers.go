@@ -2,9 +2,10 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/unoadmin/admin-service/internal/domain"
 )
@@ -43,82 +44,83 @@ type refreshRequest struct {
 }
 
 // handleLogin 处理账号密码登录。
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleLogin(c *gin.Context) {
 	var req loginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, domain.ErrInvalid)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, domain.ErrInvalid)
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
 	if req.Username == "" || req.Password == "" {
-		writeError(w, domain.ErrInvalid)
+		writeError(c, domain.ErrInvalid)
 		return
 	}
 
-	pair, session, err := s.auth.SignIn(r.Context(), req.Username, req.Password)
+	pair, session, err := s.auth.SignIn(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		writeError(w, err)
+		writeError(c, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, loginResponse{TokenPair: pair, AuthSession: session})
+	c.JSON(http.StatusOK, loginResponse{TokenPair: pair, AuthSession: session})
 }
 
 // handleRefresh 用 Redis 中的刷新令牌换取新令牌对。
-func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleRefresh(c *gin.Context) {
 	var req refreshRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, domain.ErrInvalid)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, domain.ErrInvalid)
 		return
 	}
-	pair, session, err := s.auth.Refresh(r.Context(), strings.TrimSpace(req.RefreshToken))
+	pair, session, err := s.auth.Refresh(c.Request.Context(), strings.TrimSpace(req.RefreshToken))
 	if err != nil {
-		writeError(w, err)
+		writeError(c, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, loginResponse{TokenPair: pair, AuthSession: session})
+	c.JSON(http.StatusOK, loginResponse{TokenPair: pair, AuthSession: session})
 }
 
 // handleRestore 根据 Bearer 令牌重建会话。
-func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
-	session, err := s.auth.Restore(r.Context(), bearerToken(r))
+func (s *Server) handleRestore(c *gin.Context) {
+	session, err := s.auth.Restore(c.Request.Context(), bearerToken(c))
 	if err != nil {
-		writeError(w, err)
+		writeError(c, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	c.JSON(http.StatusOK, session)
 }
 
 // handleLogout 吊销当前访问令牌并删除关联的刷新令牌。
-func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleLogout(c *gin.Context) {
 	var req refreshRequest
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if err := s.auth.SignOut(r.Context(), bearerToken(r), strings.TrimSpace(req.RefreshToken)); err != nil {
-		writeError(w, err)
+	// 请求体缺失不阻断注销，仍然吊销访问令牌。
+	_ = c.ShouldBindJSON(&req)
+	if err := s.auth.SignOut(c.Request.Context(), bearerToken(c), strings.TrimSpace(req.RefreshToken)); err != nil {
+		writeError(c, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // handleSwitchTenant 校验租户归属并返回携带新租户的新令牌。
-func (s *Server) handleSwitchTenant(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSwitchTenant(c *gin.Context) {
 	var req switchTenantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, domain.ErrInvalid)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, domain.ErrInvalid)
 		return
 	}
 	if strings.TrimSpace(req.TenantID) == "" {
-		writeError(w, domain.ErrInvalid)
+		writeError(c, domain.ErrInvalid)
 		return
 	}
-	pair, err := s.auth.SwitchTenant(r.Context(), bearerToken(r), strings.TrimSpace(req.RefreshToken), req.TenantID)
+	pair, err := s.auth.SwitchTenant(c.Request.Context(), bearerToken(c), strings.TrimSpace(req.RefreshToken), req.TenantID)
 	if err != nil {
-		writeError(w, err)
+		writeError(c, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, pair)
+	c.JSON(http.StatusOK, pair)
 }
 
 // bearerToken 从请求头提取令牌，缺失时返回空串由服务层判定为未授权。
-func bearerToken(r *http.Request) string {
-	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+func bearerToken(c *gin.Context) string {
+	return strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
 }
