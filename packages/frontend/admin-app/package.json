@@ -17,7 +17,6 @@
   "dependencies": {
     "@unoadmin/admin-base": "workspace:*",
     "@unoadmin/core": "workspace:*",
-    "@unoadmin/ui": "workspace:*",
     "ky": "^2.2.0",
     "pinia": "^4.0.2",
     "vue": "^3.5.40",

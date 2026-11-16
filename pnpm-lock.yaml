@@ -228,9 +228,6 @@ importers:
       '@unoadmin/core':
         specifier: workspace:*
         version: link:../core
-      '@unoadmin/ui':
-        specifier: workspace:*
-        version: link:../ui
       ky:
         specifier: ^2.2.0
         version: 2.2.0
@@ -328,9 +325,6 @@ importers:
       '@unoadmin/core':
         specifier: workspace:*
         version: link:../core
-      '@unoadmin/ui':
-        specifier: workspace:*
-        version: link:../ui
     devDependencies:
       typescript:
         specifier: ~6.0.0
@@ -354,22 +348,6 @@ importers:
       typescript:
         specifier: ~6.0.0
         version: 6.0.3
-
-  packages/frontend/ui:
-    dependencies:
-      '@unoadmin/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      typescript:
-        specifier: ~6.0.0
-        version: 6.0.3
-      vue:
-        specifier: ^3.5.40
-        version: 3.5.42(typescript@6.0.3)
-      vue-tsc:
-        specifier: ^3.3.7
-        version: 3.3.11(typescript@6.0.3)
 
   packages/frontend/vite-plugins:
     dependencies:

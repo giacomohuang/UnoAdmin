@@ -13,7 +13,6 @@
 - `packages/frontend/admin-app` 是一个具体可部署的单页应用，只负责启动、环境配置、Router 创建、服务适配和业务 package 注册。
 - `@unoadmin/admin-base` 是可复用的基础功能包，包含 Layout、用户、权限、角色、租户等基础页面、路由和页面级交互。
 - 每个业务域独立为一个 `@unoadmin/domain-*` package，通过统一模块协议接入管理端。
-- `@unoadmin/ui` 只承载跨域 UI 组件和设计令牌，例如文件上传、表格、分页、弹窗、空状态等，不包含用户、租户或业务 API。
 - `@unoadmin/core` 提供稳定的类型、上下文合同和服务端口；应用壳负责会话与上下文实现，各业务通过自身 composable 读取所需能力。
 - `routes-generator` 是统一的路由生成入口，扫描应用和各 package 的约定目录，生成 `virtual:router`。
 - package 之间通过公开 API 和依赖注入协作，不通过相对路径穿透对方 `src` 目录。
@@ -37,7 +36,6 @@ UnoAdmin/
 │   │   │   │   ├── config/             # 环境变量解析和应用配置
 │   │   │   │   └── modules.ts          # base + 业务域模块清单
 │   │   ├── core/                       # TypeScript 合同、基础类型和 HTTP 客户端
-│   │   ├── ui/                         # 跨业务公共组件和设计令牌
 │   │   ├── admin-base/                 # Layout、基础页面和业务上下文 composable
 │   │   │   └── src/views/              # 基础包的自动路由页面
 │   │   ├── domain-xxx/                 # 业务域 package，按实际域命名
@@ -72,7 +70,7 @@ packages:
 
 - `User`、`Role`、`Permission`、`Tenant` 等领域基础模型。
 - `PermissionCode`、`PermissionSet`、`TenantId` 等标识类型。
-- `AuthPort`、`UserService`、`RoleService`、`PermissionService`、`TenantService`、`FileStoragePort` 等服务端口。
+- `AuthPort`、`UserService`、`RoleService`、`PermissionService`、`TenantService` 等服务端口。
 - `AdminModule`、`NavigationItem`、`PermissionDefinition` 等模块协议。
 - `HttpClient`、`HttpClientOptions` 和 `createHttpClient` 等网络基础设施。
 - 统一错误类型、分页查询参数、分页结果、排序和过滤模型。
@@ -93,21 +91,9 @@ packages:
 
 `admin-base` 使用自己的 `useAdminBaseContext`、`useAdminBaseServices`，每个 `domain-*` 也只定义自己的服务 composable，例如 `useFeatureServices`。业务之间不共享泛化的全局对象。
 
-### 3.3 `@unoadmin/ui`
+### 3.3 `@unoadmin/admin-base`
 
-跨业务可复用的 UI package，依赖 Vue，必要时依赖一个统一的底层 UI 组件库。它负责：
-
-- Button、Form、Table、Pagination、Dialog、Drawer、Dropdown 等基础封装。
-- `FileUpload`、`ImageUpload`、`FileList`、上传进度、失败重试等文件能力。
-- Loading、Empty、ErrorState、PermissionGate 等通用展示组件。
-- 表单校验展示、响应式布局、颜色和间距等设计令牌。
-- 无业务含义的 composable，例如 `usePagination`、`useDialog`。
-
-公共组件只能通过 props、slots、events 和明确的 port 协作。比如 `FileUpload` 不应直接调用某个业务域的 OSS API，而应接收 `FileStoragePort` 或 `uploader` 属性。
-
-### 3.4 `@unoadmin/admin-base`
-
-可发布的基础管理能力包，依赖 `core`、`ui`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
+可发布的基础管理能力包，依赖 `core`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
 
 - Layout、侧边导航、顶部栏、面包屑、错误页和权限兜底页面。
 - 用户列表、用户详情/编辑、用户状态和用户角色配置。
@@ -119,7 +105,7 @@ packages:
 
 基础页面只依赖 `BaseServices`，不绑定后端 URL、DTO 命名和认证实现。应用通过 `createAdminBaseModule({ services, branding, features })` 配置它。
 
-### 3.5 `@unoadmin/domain-*`
+### 3.4 `@unoadmin/domain-*`
 
 每个业务域一个 package，例如 `@unoadmin/domain-orders`、`@unoadmin/domain-assets`。每个业务包负责自己的：
 
@@ -128,9 +114,9 @@ packages:
 - 该域的 DTO 到 UI model 的转换。
 - 该域的测试和 mock 数据。
 
-业务域可以依赖 `core`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。每个业务域通过自己的服务 composable 读取应用注入的能力。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
+业务域可以依赖 `core`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。每个业务域通过自己的服务 composable 读取应用注入的能力。跨域共用的合同下沉到 `core`，强管理系统语义的组件放到 `admin-base`。
 
-### 3.6 `packages/frontend/admin-app`
+### 3.5 `packages/frontend/admin-app`
 
 应用壳是唯一的组合根，负责：
 
@@ -170,7 +156,7 @@ packages:
 1. 依赖只能从上游能力流向下游组合，禁止循环依赖。
 2. `domain-a` 不得导入 `domain-b` 的页面、store 或 API；跨域合同放进 `core`。
 3. 页面不得直接访问 `fetch`、`axios`、`localStorage` 或具体环境变量。
-4. package 之间只使用 package name 导入，例如 `@unoadmin/ui`，禁止 `../../ui/src/*`。
+4. package 之间只使用 package name 导入，禁止相对路径穿透其他 package 的 `src`。
 5. `admin-base` 不得为了复用而反向依赖任何 `domain-*`。
 6. 业务 package 只能通过 `core` 的共享 token 和自身 composable 读取会话、服务等上下文，不得依赖 admin-app 或其他业务包的实现。
 
@@ -291,44 +277,7 @@ require('role:grant')
 
 这样可以避免“界面切换了租户，但列表仍然显示上一个租户数据”的状态泄漏。
 
-## 7. 公共组件和文件上传
-
-### 7.1 公共组件的分层
-
-公共组件按复用范围分三层：
-
-1. `@unoadmin/ui`：无业务语义，例如文件上传、表格、筛选栏。
-2. `@unoadmin/admin-base`：管理系统语义，例如权限树、租户选择器、用户角色选择器。
-3. `domain-*` 内部组件：只服务一个业务域，例如订单状态时间线。
-
-当一个组件只在两个业务域中出现时，不要立即放进公共包。先确认它的交互、数据模型和错误处理确实稳定，再提升层级。
-
-### 7.2 文件上传 port
-
-`FileUpload` 只处理文件选择、校验、进度、取消、失败和重试。上传地址、鉴权、对象存储、业务关联和最终文件元数据由 `FileStoragePort` 注入：
-
-```ts
-export interface FileStoragePort {
-  upload(input: UploadInput, signal?: AbortSignal): Promise<UploadResult>
-  remove?(file: StoredFile): Promise<void>
-  getPreviewUrl?(file: StoredFile): Promise<string>
-}
-```
-
-建议上传流程为：
-
-```text
-选择文件
-  -> 前端类型/大小校验
-  -> 获取上传凭证或上传会话
-  -> 上传并报告进度
-  -> 服务端确认并返回文件元数据
-  -> 业务域保存 fileId，而不是保存临时 URL
-```
-
-需要明确区分：临时上传凭证、持久化文件 ID、预览 URL 和下载 URL。公共组件不得把对象存储密钥、永久 URL 或业务表字段写死在组件内部。
-
-## 8. 状态和数据访问约定
+## 7. 状态和数据访问约定
 
 - Pinia store 只保存跨页面共享且具有生命周期意义的状态，例如会话、权限、租户、Layout 偏好。
 - 页面筛选条件、分页和弹窗开关默认保持在页面或 composable 内，不要把所有状态都提升到全局 store。
@@ -337,9 +286,9 @@ export interface FileStoragePort {
 - 列表刷新、删除、切换租户等操作必须明确刷新哪些查询，不能依赖全局事件总线碰运气刷新。
 - 业务数据的最终权限、租户隔离和字段脱敏由后端保证，前端只消费结果并展示状态。
 
-## 9. Vite、发布和依赖管理
+## 8. Vite、发布和依赖管理
 
-### 9.1 Vite 的使用边界
+### 8.1 Vite 的使用边界
 
 - `packages/frontend/*-app` 使用普通 Vite application build，产出最终静态资源。
 - 可复用 package 使用 Vite library mode 或等价的库构建配置，产出 ESM、类型声明和样式入口。
@@ -372,12 +321,12 @@ package 的 `package.json` 应提供类似的公开入口：
 
 版本策略建议如下：
 
-- `core`、`ui`、`admin-base` 使用独立 semver 版本，但在 monorepo 内通过 `workspace:` 管理。
+- `core`、`admin-base` 使用独立 semver 版本，但在 monorepo 内通过 `workspace:` 管理。
 - 公开的 port、模块协议、权限码和路由 name 视为 API；破坏性变化必须升级 major。
 - 同一个仓库内的业务 package 可以独立发布和升级，应用通过锁文件固定版本。
 - 如果基础 package 只服务公司内部项目，也建议按照可发布包设计，先用私有 registry，避免未来提取时重做边界。
 
-### 9.2 SPA 运行和部署
+### 8.2 SPA 运行和部署
 
 应用使用 history 路由，Router 创建方式固定为：
 
@@ -398,7 +347,7 @@ SPA 的要求不只是 Vite 配置，还包括静态服务器配置：
 
 只有在部署环境无法配置 history 回退时才考虑 `createWebHashHistory`。默认不使用 hash 路由，因为它会影响 URL 规范、服务端日志和外部链接体验。
 
-## 10. 路由生成插件的处理建议
+## 9. 路由生成插件的处理建议
 
 `routes-generator` 采用“多路由根目录汇总、单一虚拟模块输出”的方案，成为应用内所有页面路由的唯一生成入口：
 
@@ -441,13 +390,12 @@ declare module 'virtual:router' {
 
 需要自动生成但不进入布局壳的页面应声明 `layout: false`。根目录 `Index.vue` 还必须显式配置 `routePath: "/"`；生成根路径后，应用侧不能继续保留同一个 `/` 手工重定向。Layout 页面和 standalone 页面不得声明同一路径，生成器会在构建期报错。
 
-## 11. 测试和质量门禁
+## 10. 测试和质量门禁
 
 每个 package 都应在自己的边界内测试，应用再做一次组合验证：
 
 - `core`：类型合同、权限码、分页模型、租户上下文的纯函数测试。
 - `admin-app`：登录态恢复、权限守卫、租户切换、上下文注入和模块注册测试。
-- `ui`：组件 props/events/slots、键盘操作、错误和 loading 状态测试。
 - `admin-base`：用户、权限、角色、租户的页面行为测试，以及无权限和空数据状态。
 - `domain-*`：业务域页面、服务 adapter 和模块声明测试。
 - `packages/frontend/admin-app`：路由组合、登录跳转、真实 API mock、关键端到端流程。
@@ -472,7 +420,7 @@ pnpm test:e2e
 - `virtual:router` 在开发和生产构建中都能包含基础包、业务包和应用专属页面。
 - 关键的 390px/移动端视口、权限拒绝、租户切换、上传失败和 SPA 深链接刷新流程有浏览器验证。
 
-## 12. 分阶段落地计划
+## 11. 分阶段落地计划
 
 ### 阶段一：建立边界
 
@@ -493,16 +441,16 @@ pnpm test:e2e
 1. 每次只迁移一个业务域，创建对应 `domain-*` package。
 2. 为每个域补齐模块 ID、路由、导航、权限和 service adapter。
 3. 从应用组合根注册模块，检查业务包之间没有反向依赖。
-4. 将跨域重复组件下沉到 `ui`，但保留明确的提升依据。
+4. 将强管理系统语义的重复组件下沉到 `admin-base`，业务专属组件继续留在对应域。
 
 ### 阶段四：发布和复用验证
 
-1. 为 `ui`、`admin-base` 配置库构建、声明文件和 exports，并确保各业务 composable 只依赖 `core` 合同。
+1. 为 `admin-base` 配置库构建、声明文件和 exports，并确保各业务 composable 只依赖 `core` 合同。
 2. 使用私有 registry 或 changesets 管理版本和变更日志。
 3. 新建第二个最小消费者应用，验证基础包可以复用并支持不同品牌、API 地址和权限模型。
 4. 通过组合测试、构建产物检查和浏览器流程验证后，再移除旧的应用内重复实现。
 
-## 13. 首版验收标准
+## 12. 首版验收标准
 
 - 新建一个应用时，只需实现 adapter、配置 Layout/品牌信息并注册模块，就能获得用户、权限、角色、租户基础能力。
 - `@unoadmin/admin-base` 不依赖任何 `domain-*`，并且没有硬编码 API URL、Token 存储方式或租户 Header。
@@ -515,7 +463,7 @@ pnpm test:e2e
 - 所有 package 的外部使用方式都通过 `index.ts` 和 `package.json.exports` 暴露，内部目录结构可以独立演进。
 - 应用只有一个 SPA 入口，直接访问和刷新任意合法深层 URL 都能恢复对应页面。
 
-## 14. 需要在实现前确认的产品合同
+## 13. 需要在实现前确认的产品合同
 
 架构可以先按上述边界落地，但以下内容需要和后端/API 契约一起定稿：
 

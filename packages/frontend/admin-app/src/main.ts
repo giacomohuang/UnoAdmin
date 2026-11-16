@@ -7,7 +7,6 @@ import {
   ADMIN_SERVICES_KEY,
   ADMIN_SESSION_KEY,
 } from '@unoadmin/core'
-import '@unoadmin/ui/styles.css'
 import '@unoadmin/admin-base/styles.css'
 import './styles.css'
 

@@ -23,10 +23,6 @@
       "types": "./src/services.ts",
       "import": "./src/services.ts"
     },
-    "./storage": {
-      "types": "./src/storage.ts",
-      "import": "./src/storage.ts"
-    },
     "./auth": {
       "types": "./src/auth.ts",
       "import": "./src/auth.ts"

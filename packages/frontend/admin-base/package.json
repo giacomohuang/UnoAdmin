@@ -10,8 +10,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@unoadmin/core": "workspace:*",
-    "@unoadmin/ui": "workspace:*"
+    "@unoadmin/core": "workspace:*"
   },
   "peerDependencies": {
     "vue": ">=3.5",
