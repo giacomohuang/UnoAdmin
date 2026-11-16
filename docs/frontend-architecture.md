@@ -406,8 +406,8 @@ SPA 的要求不只是 Vite 配置，还包括静态服务器配置：
 - `packages/frontend/admin-app/src/views` 放应用专属页面。
 - `@unoadmin/admin-base/src/views` 放 Layout 之外的用户、权限、角色、租户页面。
 - 每个 `domain-*` package 在自己的 `src/views` 下放业务页面。
-- `components` 目录、Layout、登录页、错误页和显式 `isRouter: false` 页面不生成普通业务路由。
-- 页面 `<router lang="json">` 和目录 `routeMeta.json` 继续负责 `title`、`permission`、`routePath`、`param` 等元信息。
+- `components` 目录、Layout、登录页、错误页等排除项由 `exclude` 显式配置，使用 Gitignore 风格通配符；显式 `isRouter: false` 的页面仍由页面元信息关闭生成。
+- 页面 `<router lang="json">` 和目录 `routeMeta.json` 继续负责 `title`、`permission`、`routePath`、`param` 等元信息；页面可通过 `layout: false` 直接生成不依赖 Layout 的顶层路由。
 - 每个路由根目录必须有明确的模块 ID、路由前缀和 Layout 归属，生成器要在构建时检查路径和 route name 冲突。
 
 目标配置形态如下，应用不再手写业务 `RouteRecordRaw[]`：
@@ -415,6 +415,7 @@ SPA 的要求不只是 Vite 配置，还包括静态服务器配置：
 ```ts
 routesGeneratorPlugin({
   layoutDir: resolvePackageView('@unoadmin/admin-base', 'Layout.vue'),
+  exclude: ['**/components', 'Layout.vue', 'Signin.vue', '403.vue', '404.vue'],
   routeRoots: [
     { moduleId: 'admin-base', packageName: '@unoadmin/admin-base', directory: 'src/views', basePath: '' },
     { moduleId: 'orders', packageName: '@unoadmin/domain-orders', directory: 'src/views', basePath: '/orders' },
@@ -437,7 +438,9 @@ declare module 'virtual:router' {
 
 在 monorepo 开发模式下，`routeRoots` 可以指向 workspace package 的源码目录。发布到 registry 的 package 则应在构建时生成并发布自己的 route manifest/route entry，由同一个插件消费；消费者不需要复制基础包页面，也不需要手动导入单个页面组件。两种来源都必须经过同一套路径、权限、命名和冲突校验。
 
-应用侧只保留登录页、全局 404/403、回调页等特殊手工路由。需要避免生成时，应在页面中声明 `isRouter: false`，防止同一个 URL 同时出现在自动路由和手工路由中。
+应用侧只保留登录页、全局 404/403、回调页等特殊手工路由。结构性排除（组件目录、Layout、一组保留页面）应写入 `exclude` 并复用 `.gitignore` 规则；单个页面需要避免生成时，也可声明 `isRouter: false`，防止同一个 URL 同时出现在自动路由和手工路由中。
+
+需要自动生成但不进入布局壳的页面应声明 `layout: false`。根目录 `Index.vue` 还必须显式配置 `routePath: "/"`；生成根路径后，应用侧不能继续保留同一个 `/` 手工重定向。Layout 页面和 standalone 页面不得声明同一路径，生成器会在构建期报错。
 
 ## 11. 测试和质量门禁
 

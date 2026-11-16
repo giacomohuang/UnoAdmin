@@ -6,3 +6,8 @@
     <RouterLink class="base-button" to="/dashboard">返回工作台</RouterLink>
   </main>
 </template>
+<router lang="json">
+{
+  "layout": false
+}
+</router>

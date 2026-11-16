@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
 import { authAdapter, appServices } from '../adapters/mock'
+import { routeExcludePatterns } from '../router/route-generator.config'
 import { installRouterGuards } from '../router/guards'
 import { createAdminRuntime } from '@unoadmin/runtime'
 
@@ -10,6 +11,8 @@ describe('generated application route contract', () => {
   it('contains base and demo package pages', () => {
     const routeRecords = getGeneratedRouteRecords({
       layoutDir: '/layout.vue',
+      // Reuse the same Gitignore-style filters as the Vite plugin configuration.
+      exclude: routeExcludePatterns,
       routeRoots: [
         // The application package resolves its generated route roots from sibling packages.
         { moduleId: 'admin-base', directory: '../admin-base/src/views', basePath: '' },
@@ -29,6 +32,7 @@ describe('generated application route contract', () => {
     expect(routePaths).toContain('/system/users')
     expect(routePaths).toContain('/demo/overview')
     expect(routePaths).toContain('/demo/records')
+    expect(routePaths).not.toContain('/layout')
   })
 
   it('redirects unauthenticated access and rejects missing permissions', async () => {

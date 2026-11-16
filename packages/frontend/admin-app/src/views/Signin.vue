@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { useAdminRuntime } from '@unoadmin/runtime'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const runtime = useAdminRuntime()
@@ -24,3 +24,8 @@ async function enterWorkspace() {
     </section>
   </main>
 </template>
+<router lang="json">
+{
+  "layout": false
+}
+</router>

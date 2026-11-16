@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import ignore from 'ignore'
 import type { Plugin } from 'vite'
 
 /** A source directory that contributes pages to the generated SPA route table. */
@@ -8,12 +9,16 @@ export interface RouteRoot {
   moduleId: string
   directory: string
   basePath?: string
+  /** Gitignore-style rules applied only to paths below this route root. */
+  exclude?: readonly string[]
 }
 
 /** Configuration for the workspace-wide route generator. */
 export interface Options {
   layoutDir?: string
   routeRoots?: RouteRoot[]
+  /** Gitignore-style rules applied to every route root before root-specific rules. */
+  exclude?: readonly string[]
 }
 
 interface RouteMeta {
@@ -22,14 +27,22 @@ interface RouteMeta {
   [key: string]: unknown
 }
 
+/** Page-level route generation options parsed from the custom router block. */
 interface RouterConfig {
   isRouter?: boolean
+  layout?: boolean
   param?: string
   routePath?: string
   [key: string]: unknown
 }
 
 type RouteMetaConfig = Record<string, unknown>
+
+/** Identifies the generation mode that owns a canonical route path. */
+interface RouteOwner {
+  moduleId: string
+  kind: 'layout' | 'standalone'
+}
 
 interface RouteRecord {
   path: string
@@ -41,6 +54,9 @@ interface RouteRecord {
   component?: string
   children?: RouteRecord[]
 }
+
+/** Tests a filesystem path against the root-scoped exclusion rules. */
+type ExcludeMatcher = (filePath: string, isDirectory?: boolean) => boolean
 
 const virtualModuleId = 'virtual:router'
 const resolvedVirtualModuleId = `\0${virtualModuleId}`
@@ -62,7 +78,11 @@ export function routesGeneratorPlugin(options: Options = {}): Plugin {
     },
     handleHotUpdate({ file, server }) {
       const routeRoots = getRouteRoots(options)
-      if (routeRoots.some((root) => filePathIsInDirectory(file, root.directory))) {
+      // Overlapping roots may use different rules, so any included copy should refresh routes.
+      const affectsRoutes = routeRoots.some((root) => (
+        filePathIsInDirectory(file, root.directory) && !createExcludeMatcher(options, root)(file)
+      ))
+      if (affectsRoutes) {
         const module = server.moduleGraph.getModuleById(resolvedVirtualModuleId)
         if (module) server.moduleGraph.invalidateModule(module)
         server.ws.send({ type: 'full-reload' })
@@ -81,15 +101,16 @@ export function getGeneratedRouteRecords(options: Options = {}): RouteRecord[] {
   const routeRoots = getRouteRoots(options)
   const routes: RouteRecord[] = []
   const routeMap: Record<string, RouteRecord> = {}
-  const routeOwners: Record<string, string> = {}
+  const routeOwners: Record<string, RouteOwner> = {}
 
   validateRouteRoots(routeRoots)
 
   for (const root of routeRoots) {
-    const files = collectViewFiles(root.directory)
+    const isExcluded = createExcludeMatcher(options, root)
+    const files = collectViewFiles(root.directory, isExcluded)
       .map((file) => file.replace(root.directory, '').split(path.sep).join('/'))
       .sort()
-    const directoryMetaByPath = collectDirectoryMetaByPath(root.directory)
+    const directoryMetaByPath = collectDirectoryMetaByPath(root.directory, isExcluded)
     generateRoutes(
       files,
       directoryMetaByPath,
@@ -123,38 +144,53 @@ function getRouteRoots(options: Options): RouteRoot[] {
   }]
 }
 
-function collectViewFiles(root: string): string[] {
+/** Build one matcher so shared rules and root-specific overrides share Gitignore semantics. */
+function createExcludeMatcher(options: Options, root: RouteRoot): ExcludeMatcher {
+  const patterns = [...(options.exclude ?? []), ...(root.exclude ?? [])]
+  if (!patterns.length) return () => false
+
+  const matcher = ignore({ ignorecase: true }).add(patterns)
+  return (filePath, isDirectory = false) => {
+    const relativePath = path.relative(root.directory, filePath).split(path.sep).join('/')
+    if (!relativePath || relativePath === '..' || relativePath.startsWith('../')) return false
+    return matcher.ignores(isDirectory ? `${relativePath}/` : relativePath)
+  }
+}
+
+/** Recursively collect page modules that survive the current root's exclusions. */
+function collectViewFiles(root: string, isExcluded: ExcludeMatcher): string[] {
   const result: string[] = []
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     const fullPath = path.join(root, entry.name)
+    if (isExcluded(fullPath, entry.isDirectory())) continue
     if (entry.isDirectory()) {
-      if (isComponentsDirectory(entry.name)) continue
-      result.push(...collectViewFiles(fullPath))
+      result.push(...collectViewFiles(fullPath, isExcluded))
       continue
     }
     if (!/\.(vue|tsx|jsx)$/.test(entry.name)) continue
-    if (['Layout.vue', 'Signin.vue', '403.vue', '404.vue'].includes(entry.name)) continue
     result.push(fullPath)
   }
   return result
 }
 
-function collectDirectoryMetaByPath(root: string, current = root, result: Record<string, RouteMetaConfig> = {}) {
+/** Recursively collect directory metadata only from paths included by the same rules. */
+function collectDirectoryMetaByPath(
+  root: string,
+  isExcluded: ExcludeMatcher,
+  current = root,
+  result: Record<string, RouteMetaConfig> = {},
+) {
   for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
     const fullPath = path.join(current, entry.name)
+    if (isExcluded(fullPath, entry.isDirectory())) continue
     if (entry.isDirectory()) {
-      if (isComponentsDirectory(entry.name)) continue
-      collectDirectoryMetaByPath(root, fullPath, result)
+      collectDirectoryMetaByPath(root, isExcluded, fullPath, result)
       continue
     }
     if (entry.name !== 'routeMeta.json') continue
     result[toRoutePathFromDirectory(root, current)] = readRouteMetaJson(fullPath)
   }
   return result
-}
-
-function isComponentsDirectory(name: string) {
-  return name.toLowerCase() === 'components'
 }
 
 function readRouteMetaJson(file: string): RouteMetaConfig {
@@ -177,7 +213,7 @@ function generateRoutes(
   root: RouteRoot,
   routes: RouteRecord[],
   map: Record<string, RouteRecord>,
-  routeOwners: Record<string, string>,
+  routeOwners: Record<string, RouteOwner>,
 ) {
   for (const file of files) {
     const fullPath = path.resolve(root.directory, `.${file}`)
@@ -185,26 +221,46 @@ function generateRoutes(
     const routerConfig = readRouterConfig(content)
     if (routerConfig.isRouter === false) continue
 
-    const { param, routePath, ...customMeta } = routerConfig
+    const { layout = true, param, routePath, ...customMeta } = routerConfig
+    if (typeof layout !== 'boolean') {
+      throw new Error(`Route file ${fullPath} field "layout" must be a boolean`)
+    }
+
     const localParts = routePath ? toRoutePartsFromPath(routePath) : toRouteParts(file)
     const parts = [...toRoutePartsFromPath(root.basePath || ''), ...localParts]
-    if (!parts.length) {
+    const isExplicitRoot = layout === false && routePath?.trim() === '/'
+    if (!parts.length && !isExplicitRoot) {
       throw new Error(`Route file ${fullPath} must resolve to a non-empty path`)
     }
     const aliases = routePath ? [] : kebabAliases(file, parts, param)
     const component = `() => import(${JSON.stringify(fullPath)})`
-    ensureRoute(
-      routes,
-      map,
-      directoryMetaByPath,
-      root,
-      parts,
-      component,
-      param,
-      customMeta,
-      aliases,
-      routeOwners,
-    )
+    if (layout === false) {
+      ensureStandaloneRoute(
+        routes,
+        map,
+        directoryMetaByPath,
+        root,
+        parts,
+        component,
+        param,
+        customMeta,
+        aliases,
+        routeOwners,
+      )
+    } else {
+      ensureRoute(
+        routes,
+        map,
+        directoryMetaByPath,
+        root,
+        parts,
+        component,
+        param,
+        customMeta,
+        aliases,
+        routeOwners,
+      )
+    }
   }
 }
 
@@ -218,7 +274,7 @@ function ensureRoute(
   param: string | undefined,
   customMeta: Record<string, unknown>,
   aliases: string[],
-  routeOwners: Record<string, string>,
+  routeOwners: Record<string, RouteOwner>,
 ) {
   const leafPath = toFullPath(parts)
   const isTopLevel = parts.length === 1
@@ -255,10 +311,49 @@ function ensureRoute(
         route.redirect = leafPath
       }
     } else if (isLeaf) {
-      route.path = currentPath + (param ? `/${param}` : '')
+      route.path = toLeafPath(currentParts, param)
       if (aliases.length) route.alias = aliases
       route.component = component
     }
+  }
+}
+
+/** Add a page as a top-level route without creating or sharing a Layout parent. */
+function ensureStandaloneRoute(
+  routes: RouteRecord[],
+  map: Record<string, RouteRecord>,
+  directoryMetaByPath: Record<string, RouteMetaConfig>,
+  root: RouteRoot,
+  parts: string[],
+  component: string,
+  param: string | undefined,
+  customMeta: Record<string, unknown>,
+  aliases: string[],
+  routeOwners: Record<string, RouteOwner>,
+) {
+  const canonicalPath = toFullPath(parts)
+  const existingOwner = routeOwners[canonicalPath]
+  if (existingOwner) {
+    throwRouteConflict(canonicalPath, existingOwner, {
+      moduleId: root.moduleId,
+      kind: 'standalone',
+    })
+  }
+
+  const route: RouteRecord = {
+    path: toLeafPath(parts, param),
+    name: getRouteName(root, parts),
+    meta: buildRouteMeta(directoryMetaByPath, canonicalPath, parts, customMeta),
+    props: true,
+    component,
+  }
+  if (aliases.length) route.alias = aliases
+
+  routes.push(route)
+  map[canonicalPath] = route
+  routeOwners[canonicalPath] = {
+    moduleId: root.moduleId,
+    kind: 'standalone',
   }
 }
 
@@ -268,13 +363,17 @@ function getOrCreateRoute(
   directoryMetaByPath: Record<string, RouteMetaConfig>,
   root: RouteRoot,
   parts: string[],
-  routeOwners: Record<string, string>,
+  routeOwners: Record<string, RouteOwner>,
 ) {
   const currentPath = toFullPath(parts)
   const existing = map[currentPath]
   if (existing) {
-    if (routeOwners[currentPath] !== root.moduleId) {
-      throw new Error(`Route path ${currentPath} is declared by both ${routeOwners[currentPath]} and ${root.moduleId}`)
+    const existingOwner = routeOwners[currentPath]
+    if (!existingOwner || existingOwner.kind !== 'layout' || existingOwner.moduleId !== root.moduleId) {
+      throwRouteConflict(currentPath, existingOwner, {
+        moduleId: root.moduleId,
+        kind: 'layout',
+      })
     }
     return existing
   }
@@ -295,8 +394,19 @@ function getOrCreateRoute(
   }
 
   map[currentPath] = route
-  routeOwners[currentPath] = root.moduleId
+  routeOwners[currentPath] = {
+    moduleId: root.moduleId,
+    kind: 'layout',
+  }
   return route
+}
+
+/** Report an ambiguous path where Layout and standalone generation cannot coexist. */
+function throwRouteConflict(routePath: string, existing: RouteOwner | undefined, incoming: RouteOwner): never {
+  if (!existing) {
+    throw new Error(`Route path ${routePath} is already occupied by ${incoming.moduleId} (${incoming.kind})`)
+  }
+  throw new Error(`Route path ${routePath} is declared by both ${existing.moduleId} (${existing.kind}) and ${incoming.moduleId} (${incoming.kind})`)
 }
 
 function hasIndexChild(route: RouteRecord) {
@@ -350,10 +460,24 @@ function toFullPath(parts: string[]) {
   return `/${parts.join('/')}`
 }
 
+/** Build a canonical leaf path while handling the root path and parameter segment safely. */
+function toLeafPath(parts: string[], param: string | undefined) {
+  const routePath = toFullPath(parts)
+  if (!param) return routePath
+  return routePath === '/' ? `/${param}` : `${routePath}/${param}`
+}
+
+/** Keep root standalone routes addressable with a stable module-scoped name. */
+function getRouteName(root: RouteRoot, parts: string[]) {
+  return `${root.moduleId}-${parts.length ? parts.join('-') : 'index'}`
+}
+
+/** Merge default and configured metadata while assigning a stable namespace to the root route. */
 function buildRouteMeta(directoryMetaByPath: Record<string, RouteMetaConfig>, routePath: string, parts: string[], customMeta: Record<string, unknown> = {}) {
+  const metaParts = parts.length ? parts : ['index']
   return {
-    title: parts.join('.'),
-    permission: getRoutePermission(parts),
+    title: metaParts.join('.'),
+    permission: getRoutePermission(metaParts),
     ...(directoryMetaByPath[routePath] || {}),
     ...customMeta
   }

@@ -14,5 +14,8 @@
     "@types/node": "^24.13.3",
     "typescript": "~6.0.0",
     "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "ignore": "^7.0.14"
   }
 }
