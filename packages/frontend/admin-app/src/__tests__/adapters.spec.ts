@@ -110,6 +110,101 @@ describe('api client', () => {
     await expect(client.request('users')).rejects.toBeInstanceOf(ApiError)
     expect(onAuthFailed).toHaveBeenCalledOnce()
   })
+
+  it('coalesces concurrent 401s into a single refresh', async () => {
+    const store = createTokenStore(memoryStorage())
+    store.setTokens('expired-access', 'refresh-1')
+    const refreshCalls: string[] = []
+    const fetchMock = vi.fn(async (request: Request) => {
+      if (request.url.endsWith('/auth/refresh')) {
+        refreshCalls.push(request.url)
+        return jsonResponse({ token: 'new-access', refreshToken: 'refresh-2' })
+      }
+      if (request.headers.get('Authorization') === 'Bearer new-access') {
+        return jsonResponse({ items: [], total: 0 })
+      }
+      return jsonResponse({ error: 'unauthorized' }, 401)
+    })
+
+    const client = createApiClient({
+      baseURL: 'http://api.test/api/v1/',
+      getAccessToken: () => store.getAccess(),
+      getRefreshToken: () => store.getRefresh(),
+      getTenantId: () => null,
+      onTokens: (access, refresh) => store.setTokens(access, refresh),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    const results = await Promise.all([
+      client.request('users'),
+      client.request('roles'),
+      client.request('tenants'),
+    ])
+
+    expect(results).toEqual([
+      { items: [], total: 0 },
+      { items: [], total: 0 },
+      { items: [], total: 0 },
+    ])
+    // 三个并发 401 只应触发一次刷新，否则服务端会因轮换把彼此的刷新令牌作废。
+    expect(refreshCalls).toHaveLength(1)
+    expect(store.getRefresh()).toBe('refresh-2')
+  })
+
+  it('replays with the token another request already refreshed', async () => {
+    const store = createTokenStore(memoryStorage())
+    store.setTokens('expired-access', 'refresh-1')
+    let refreshCalls = 0
+    const fetchMock = vi.fn(async (request: Request) => {
+      if (request.url.endsWith('/auth/refresh')) {
+        refreshCalls += 1
+        return jsonResponse({ token: 'unexpected', refreshToken: 'refresh-9' })
+      }
+      if (request.headers.get('Authorization') === 'Bearer new-access') {
+        return jsonResponse({ items: [], total: 0 })
+      }
+      // 模拟并发同伴在本次 401 返回前已完成刷新。
+      store.setTokens('new-access', 'refresh-2')
+      return jsonResponse({ error: 'unauthorized' }, 401)
+    })
+
+    const client = createApiClient({
+      baseURL: 'http://api.test/api/v1/',
+      getAccessToken: () => store.getAccess(),
+      getRefreshToken: () => store.getRefresh(),
+      getTenantId: () => null,
+      onTokens: (access, refresh) => store.setTokens(access, refresh),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(client.request('users')).resolves.toEqual({ items: [], total: 0 })
+    // 令牌已被轮换过，不应再打 refresh，直接重放即可。
+    expect(refreshCalls).toBe(0)
+    expect(store.getRefresh()).toBe('refresh-2')
+  })
+
+  it('keeps the session when refresh fails for network reasons', async () => {
+    store.setTokens('expired-access', 'refresh-1')
+    const onAuthFailed = vi.fn()
+    const fetchMock = vi.fn(async (request: Request) => {
+      if (request.url.endsWith('/auth/refresh')) throw new TypeError('network down')
+      return jsonResponse({ error: 'unauthorized' }, 401)
+    })
+
+    const client = createApiClient({
+      baseURL: 'http://api.test/api/v1/',
+      getAccessToken: () => store.getAccess(),
+      getRefreshToken: () => store.getRefresh(),
+      getTenantId: () => null,
+      onTokens: (access, refresh) => store.setTokens(access, refresh),
+      onAuthFailed,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(client.request('users')).rejects.toBeInstanceOf(ApiError)
+    expect(onAuthFailed).not.toHaveBeenCalled()
+    expect(store.getRefresh()).toBe('refresh-1')
+  })
 })
 
 describe('http auth adapter', () => {
