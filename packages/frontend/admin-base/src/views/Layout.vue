@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-
 import type { NavigationItem, TenantId } from '@unoadmin/core'
 import { useAdminRuntime } from '@unoadmin/runtime'
+import { computed, ref } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 const runtime = useAdminRuntime()
 const route = useRoute()
@@ -44,25 +43,12 @@ async function signOut() {
 
       <nav class="admin-nav" aria-label="主导航">
         <template v-for="item in navigation" :key="item.id">
-          <RouterLink
-            v-if="item.to"
-            class="admin-nav__item"
-            :class="{ 'admin-nav__item--active': isActive(item) }"
-            :to="item.to"
-            @click="sidebarOpen = false"
-          >
+          <RouterLink v-if="item.to" class="admin-nav__item" :class="{ 'admin-nav__item--active': isActive(item) }" :to="item.to" @click="sidebarOpen = false">
             <span>{{ item.label }}</span>
           </RouterLink>
           <div v-else class="admin-nav__group">
             <span class="admin-nav__label">{{ item.label }}</span>
-            <RouterLink
-              v-for="child in item.children"
-              :key="child.id"
-              class="admin-nav__item admin-nav__item--child"
-              :class="{ 'admin-nav__item--active': isActive(child) }"
-              :to="child.to || '/404'"
-              @click="sidebarOpen = false"
-            >
+            <RouterLink v-for="child in item.children" :key="child.id" class="admin-nav__item admin-nav__item--child" :class="{ 'admin-nav__item--active': isActive(child) }" :to="child.to || '/404'" @click="sidebarOpen = false">
               <span>{{ child.label }}</span>
             </RouterLink>
           </div>
@@ -86,12 +72,7 @@ async function signOut() {
         </button>
         <div class="admin-topbar__context">
           <span class="admin-topbar__eyebrow">当前空间</span>
-          <select
-            class="admin-tenant-select"
-            :value="runtime.state.currentTenant?.id"
-            aria-label="切换租户"
-            @change="handleTenantChange"
-          >
+          <select class="admin-tenant-select" :value="runtime.state.currentTenant?.id" aria-label="切换租户" @change="handleTenantChange">
             <option v-for="tenant in runtime.state.tenants" :key="tenant.id" :value="tenant.id">
               {{ tenant.name }}
             </option>

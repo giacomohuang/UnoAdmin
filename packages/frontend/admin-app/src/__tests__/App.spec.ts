@@ -3,9 +3,11 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
 import { authAdapter, appServices } from '../adapters/mock'
-import { routeExcludePatterns } from '../router/route-generator.config'
 import { installRouterGuards } from '../router/guards'
 import { createAdminRuntime } from '@unoadmin/runtime'
+
+/** Keep the route contract aligned with the exclusions in vite.config.ts. */
+const routeExcludePatterns = ['**/components', 'Layout.vue'] as const
 
 describe('generated application route contract', () => {
   it('contains base and demo package pages', () => {
@@ -15,8 +17,8 @@ describe('generated application route contract', () => {
       exclude: routeExcludePatterns,
       routeRoots: [
         // The application package resolves its generated route roots from sibling packages.
-        { moduleId: 'admin-base', directory: '../admin-base/src/views', basePath: '' },
-        { moduleId: 'demo', directory: '../domain-demo/src/views', basePath: '/demo' },
+        { directory: '../admin-base/src/views', basePath: '' },
+        { namePrefix: 'demo', directory: '../domain-demo/src/views', basePath: '/demo' },
       ],
     })
 

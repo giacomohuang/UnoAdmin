@@ -6,14 +6,15 @@ import type { Plugin } from 'vite'
 
 /** A source directory that contributes pages to the generated SPA route table. */
 export interface RouteRoot {
-  moduleId: string
+  /** Optional prefix for generated route names; omitted names are path-only. */
+  namePrefix?: string
   directory: string
   basePath?: string
   /** Gitignore-style rules applied only to paths below this route root. */
   exclude?: readonly string[]
 }
 
-/** Configuration for the workspace-wide route generator. */
+/** Configuration for the route generator. */
 export interface Options {
   layoutDir?: string
   routeRoots?: RouteRoot[]
@@ -40,7 +41,7 @@ type RouteMetaConfig = Record<string, unknown>
 
 /** Identifies the generation mode that owns a canonical route path. */
 interface RouteOwner {
-  moduleId: string
+  root: RouteRoot
   kind: 'layout' | 'standalone'
 }
 
@@ -124,12 +125,12 @@ export function getGeneratedRouteRecords(options: Options = {}): RouteRecord[] {
   return routes
 }
 
-/** Validate root identity and prevent two packages from silently owning one path. */
+/** Validate that every configured route root exists before scanning. */
 function validateRouteRoots(routeRoots: RouteRoot[]) {
-  const moduleIds = new Set<string>()
   for (const root of routeRoots) {
-    if (moduleIds.has(root.moduleId)) throw new Error(`Duplicate route moduleId: ${root.moduleId}`)
-    moduleIds.add(root.moduleId)
+    if (root.namePrefix !== undefined && typeof root.namePrefix !== 'string') {
+      throw new Error(`Route root field "namePrefix" must be a string: ${root.directory}`)
+    }
     if (!fs.existsSync(root.directory)) throw new Error(`Route root does not exist: ${root.directory}`)
   }
 }
@@ -138,7 +139,6 @@ function getRouteRoots(options: Options): RouteRoot[] {
   if (options.routeRoots?.length) return options.routeRoots
 
   return [{
-    moduleId: 'app',
     directory: path.resolve(process.cwd(), './src/views'),
     basePath: '',
   }]
@@ -286,7 +286,7 @@ function ensureRoute(
     delete route.redirect
     setIndexChild(route, {
       path: '',
-      name: `${root.moduleId}-${parts.join('-')}-index`,
+      name: getRouteName(root, [...parts, 'index']),
       meta: buildRouteMeta(directoryMetaByPath, leafPath, parts, customMeta),
       props: true,
       component,
@@ -335,7 +335,7 @@ function ensureStandaloneRoute(
   const existingOwner = routeOwners[canonicalPath]
   if (existingOwner) {
     throwRouteConflict(canonicalPath, existingOwner, {
-      moduleId: root.moduleId,
+      root,
       kind: 'standalone',
     })
   }
@@ -352,7 +352,7 @@ function ensureStandaloneRoute(
   routes.push(route)
   map[canonicalPath] = route
   routeOwners[canonicalPath] = {
-    moduleId: root.moduleId,
+    root,
     kind: 'standalone',
   }
 }
@@ -369,9 +369,9 @@ function getOrCreateRoute(
   const existing = map[currentPath]
   if (existing) {
     const existingOwner = routeOwners[currentPath]
-    if (!existingOwner || existingOwner.kind !== 'layout' || existingOwner.moduleId !== root.moduleId) {
+    if (!existingOwner || existingOwner.kind !== 'layout' || existingOwner.root !== root) {
       throwRouteConflict(currentPath, existingOwner, {
-        moduleId: root.moduleId,
+        root,
         kind: 'layout',
       })
     }
@@ -380,7 +380,7 @@ function getOrCreateRoute(
 
   const route: RouteRecord = {
     path: currentPath,
-    name: `${root.moduleId}-${parts.join('-')}`,
+    name: getRouteName(root, parts),
     meta: buildRouteMeta(directoryMetaByPath, currentPath, parts),
     props: true,
     children: []
@@ -395,7 +395,7 @@ function getOrCreateRoute(
 
   map[currentPath] = route
   routeOwners[currentPath] = {
-    moduleId: root.moduleId,
+    root,
     kind: 'layout',
   }
   return route
@@ -404,9 +404,15 @@ function getOrCreateRoute(
 /** Report an ambiguous path where Layout and standalone generation cannot coexist. */
 function throwRouteConflict(routePath: string, existing: RouteOwner | undefined, incoming: RouteOwner): never {
   if (!existing) {
-    throw new Error(`Route path ${routePath} is already occupied by ${incoming.moduleId} (${incoming.kind})`)
+    throw new Error(`Route path ${routePath} is already occupied by ${describeRouteOwner(incoming)}`)
   }
-  throw new Error(`Route path ${routePath} is declared by both ${existing.moduleId} (${existing.kind}) and ${incoming.moduleId} (${incoming.kind})`)
+  throw new Error(`Route path ${routePath} is declared by both ${describeRouteOwner(existing)} and ${describeRouteOwner(incoming)}`)
+}
+
+/** Render a stable root label for path ownership diagnostics. */
+function describeRouteOwner(owner: RouteOwner) {
+  const prefix = getRouteNamePrefix(owner.root)
+  return `${prefix ? `"${prefix}"` : owner.root.directory} (${owner.kind})`
 }
 
 function hasIndexChild(route: RouteRecord) {
@@ -467,9 +473,15 @@ function toLeafPath(parts: string[], param: string | undefined) {
   return routePath === '/' ? `/${param}` : `${routePath}/${param}`
 }
 
-/** Keep root standalone routes addressable with a stable module-scoped name. */
+/** Build a route name from the optional root prefix and canonical path segments. */
 function getRouteName(root: RouteRoot, parts: string[]) {
-  return `${root.moduleId}-${parts.length ? parts.join('-') : 'index'}`
+  const prefix = getRouteNamePrefix(root)
+  return [prefix, ...(parts.length ? parts : ['index'])].filter(Boolean).join('-')
+}
+
+/** Normalize the optional route-name namespace without changing path generation. */
+function getRouteNamePrefix(root: RouteRoot) {
+  return root.namePrefix?.trim() ?? ''
 }
 
 /** Merge default and configured metadata while assigning a stable namespace to the root route. */

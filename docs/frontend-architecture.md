@@ -408,7 +408,7 @@ SPA 的要求不只是 Vite 配置，还包括静态服务器配置：
 - 每个 `domain-*` package 在自己的 `src/views` 下放业务页面。
 - `components` 目录、Layout、登录页、错误页等排除项由 `exclude` 显式配置，使用 Gitignore 风格通配符；显式 `isRouter: false` 的页面仍由页面元信息关闭生成。
 - 页面 `<router lang="json">` 和目录 `routeMeta.json` 继续负责 `title`、`permission`、`routePath`、`param` 等元信息；页面可通过 `layout: false` 直接生成不依赖 Layout 的顶层路由。
-- 每个路由根目录必须有明确的模块 ID、路由前缀和 Layout 归属，生成器要在构建时检查路径和 route name 冲突。
+- 每个路由根目录需要明确目录、URL 前缀和 Layout 归属；路由名称前缀 `namePrefix` 可选，生成器要在构建时检查路径归属和冲突。
 
 目标配置形态如下，应用不再手写业务 `RouteRecordRaw[]`：
 
@@ -417,10 +417,10 @@ routesGeneratorPlugin({
   layoutDir: resolvePackageView('@unoadmin/admin-base', 'Layout.vue'),
   exclude: ['**/components', 'Layout.vue', 'Signin.vue', '403.vue', '404.vue'],
   routeRoots: [
-    { moduleId: 'admin-base', packageName: '@unoadmin/admin-base', directory: 'src/views', basePath: '' },
-    { moduleId: 'orders', packageName: '@unoadmin/domain-orders', directory: 'src/views', basePath: '/orders' },
-    { moduleId: 'assets', packageName: '@unoadmin/domain-assets', directory: 'src/views', basePath: '/assets' },
-    { moduleId: 'app', packageName: '@unoadmin/admin-app', directory: 'src/views', basePath: '' },
+    { namePrefix: 'admin-base', packageName: '@unoadmin/admin-base', directory: 'src/views', basePath: '' },
+    { namePrefix: 'orders', packageName: '@unoadmin/domain-orders', directory: 'src/views', basePath: '/orders' },
+    { namePrefix: 'assets', packageName: '@unoadmin/domain-assets', directory: 'src/views', basePath: '/assets' },
+    { namePrefix: 'app', packageName: '@unoadmin/admin-app', directory: 'src/views', basePath: '' },
   ],
 })
 ```

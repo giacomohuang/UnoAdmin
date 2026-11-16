@@ -1,139 +1,494 @@
-# routes-generator
+# Vue Vite Routes Generator
 
-UnoAdmin SPA 的统一路由生成插件。它在 **Vite 构建期**扫描应用与 workspace package 的多个 `src/views` 根目录，把页面汇总成一张路由表，通过 `virtual:router` 虚拟模块暴露给应用；应用只创建一个 Vue Router 实例并消费该模块。
+一个 Vue + Vite 自动路由生成插件。它从任意数量的页面根目录收集 `.vue`、`.tsx`、`.jsx` 文件，读取页面中的路由声明，生成统一的 `virtual:router` 虚拟模块。
 
-包名为 `@unoadmin/vite-plugins`，子路径导出 `@unoadmin/vite-plugins/routes-generator` 定义在 [`../package.json`](../package.json)；入口是 TypeScript 源码（无独立构建步骤），供 workspace 内的 `dev` / `build` 使用。
+插件只负责生成 Vue Router 路由记录，不绑定具体 UI、权限系统、菜单协议或后端接口，可用于 SPA、后台管理界面、工具站以及 monorepo 中的多包页面聚合。
 
-## 职责边界
+> 下文使用 `@your-scope/vite-routes-generator` 作为示例包名。安装和导入时请替换为实际发布的包名；monorepo 中也可以使用对应 package 的子路径。
 
-| 插件负责                                                   | 插件不负责                           |
-| ---------------------------------------------------------- | ------------------------------------ |
-| 扫描页面文件、生成路径与嵌套结构                           | 创建 `createRouter()` 或注册全局守卫 |
-| 生成 `name`、`meta`、`props`、`alias`、`redirect`          | 登录态、权限判定与菜单渲染           |
-| 校验 root 唯一性、路径归属冲突                             | 运行时按权限动态加载组件             |
-| 输出 `virtual:router`（Layout 静态导入 + 页面动态 import） | 登录页、403/404、根重定向等手工路由  |
+## 特性
 
-`meta.permission` 只是给应用守卫读取的声明，前端权限不是安全边界，后端必须再次校验。
+- 支持单页面根目录，也支持从多个 package 或目录聚合页面。
+- 基于文件路径生成嵌套路由、路由名称、标题和默认权限码。
+- 支持页面级 `<router lang="json">` 配置。
+- 支持目录级 `routeMeta.json` 元信息。
+- 支持 Gitignore 风格的目录与文件排除规则。
+- 支持 Layout 页面和不依赖 Layout 的 standalone 页面。
+- 页面组件使用动态 import，适合按路由拆包。
+- 提供同步生成函数，便于在单元测试中校验路由契约。
 
-## 工作流程
+## 环境要求
 
-```text
-配置 routeRoots
-  → 按 Gitignore 风格 exclude 规则递归收集 .vue / .tsx / .jsx
-  → 读取页面 <router lang="json"> 与目录 routeMeta.json
-  → 计算 parts = basePath 分段 + 页面相对路径分段，解析 layout / param / alias
-  → Layout 页面按路径建树；独立页面直接生成顶层路由
-  → 校验 moduleId、Layout/standalone 路径归属，合并 meta
-  → 序列化为 virtual:router：import Layout + export default 路由数组
+- Vue 3
+- Vue Router
+- Vite
+- 页面文件使用 `.vue`、`.tsx` 或 `.jsx`
+
+如果项目使用 JSX/TSX，Vite 中还需要配置对应的 Vue JSX 插件。
+
+## 安装
+
+```bash
+pnpm add -D @your-scope/vite-routes-generator
 ```
 
-对应的 Vite 钩子：
-
-| 钩子              | 行为                                                                           |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `resolveId`       | 把 `virtual:router` 解析为内部 id `\0virtual:router`                           |
-| `load`            | 生成模块源码：`import Layout from "<layoutDir>"` + `export default <路由数组>` |
-| `handleHotUpdate` | 任一 root 目录下文件变化时，失效虚拟模块并 `full-reload`                       |
-
-页面组件使用 `() => import("/绝对/路径/Page.vue")`，生产构建会自动拆成异步 chunk；普通生成路由共享 `Layout`，声明 `layout: false` 的页面则直接作为顶层页面路由。
-
-## 接入
-
-`@unoadmin/vite-plugins` 应作为应用壳的 devDependency（`workspace:*`）。以下示例摘自 [`../../admin-app/vite.config.ts`](../../admin-app/vite.config.ts)：
+## 快速开始
 
 ```ts
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+
 import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
+import { defineConfig } from 'vite'
+import { routesGeneratorPlugin } from '@your-scope/vite-routes-generator'
 
-import { routesGeneratorPlugin } from '@unoadmin/vite-plugins/routes-generator'
-import { routeExcludePatterns } from './src/router/route-generator.config.ts'
-
-const workspaceRoot = fileURLToPath(new URL('../../..', import.meta.url))
-const adminBaseViews = fileURLToPath(new URL('../admin-base/src/views', import.meta.url))
-const demoViews = fileURLToPath(new URL('../domain-demo/src/views', import.meta.url))
+const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 const appViews = fileURLToPath(new URL('./src/views', import.meta.url))
+const reportsViews = fileURLToPath(new URL('./packages/reports/src/views', import.meta.url))
 
 export default defineConfig({
   plugins: [
     vue(),
-    vueJsx(),
     routesGeneratorPlugin({
-      layoutDir: fileURLToPath(new URL('../admin-base/src/views/Layout.vue', import.meta.url)),
-      exclude: routeExcludePatterns,
+      layoutDir: '/src/layouts/DefaultLayout.vue',
+      exclude: ['**/components', '**/*.spec.vue'],
       routeRoots: [
-        { moduleId: 'base', directory: adminBaseViews, basePath: '' },
-        { moduleId: 'demo', directory: demoViews, basePath: '/demo' },
-        { moduleId: 'app', directory: appViews, basePath: '' }
+        {
+          namePrefix: 'app',
+          directory: appViews,
+          basePath: ''
+        },
+        {
+          namePrefix: 'reports',
+          directory: reportsViews,
+          basePath: '/reports'
+        }
       ]
     })
   ],
   server: {
-    fs: { allow: [workspaceRoot] } // 跨 package 的绝对路径必须放行
+    fs: {
+      allow: [projectRoot]
+    }
   }
 })
 ```
 
-> `server.fs.allow` 不可省略：生成的动态 import 指向 workspace 中其它 package 的绝对文件路径，默认 Vite 文件访问策略会拦截它们。
+当 `routeRoots` 指向 Vite 项目根目录之外的 package 时，需要通过 `server.fs.allow` 放行对应工作区；否则开发服务器可能拒绝加载生成的动态 import。
 
-### 配置
+### 目录示例
 
-`routesGeneratorPlugin(options?: Options)` 与 `getGeneratedRouteRecords(options?: Options)` 共用同一份 `Options`：
-
-| 字段         | 类型                | 默认值                                                                   | 说明                                                                                                                                    |
-| ------------ | ------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `layoutDir`  | `string`            | `/src/views/Layout.vue`                                                  | Layout 组件的**导入说明符**，直接写进生成模块的 `import` 语句；可用绝对路径或 Vite 根相对路径 `/src/...`，必须能被 Vite 解析为 Vue 组件 |
-| `routeRoots` | `RouteRoot[]`       | 单 root：`{ moduleId: 'app', directory: <cwd>/src/views, basePath: '' }` | 省略或传空数组时兼容旧行为，只扫当前工作目录的 `src/views`                                                                              |
-| `exclude`    | `readonly string[]` | `[]`                                                                     | 应用于所有 root 的 Gitignore 风格排除规则，详见下文「排除规则」                                                                         |
-
-`RouteRoot`：
-
-| 字段        | 类型                | 必填 | 说明                                                                           |
-| ----------- | ------------------- | ---- | ------------------------------------------------------------------------------ |
-| `moduleId`  | `string`            | 是   | 模块标识，全局唯一；用于路由 `name` 前缀和路径归属校验                         |
-| `directory` | `string`            | 是   | 该模块的 `src/views` 目录，**务必传绝对路径**（`fileURLToPath(new URL(...))`） |
-| `basePath`  | `string`            | 否   | URL 前缀，如 `/demo`；页面路径先按相对 root 的路径生成，再拼接前缀             |
-| `exclude`   | `readonly string[]` | 否   | 仅应用于当前 root 的 Gitignore 风格规则，追加在全局 `exclude` 之后             |
-
-> `directory` 用相对路径时，生成器内部的字符串替换依赖前缀完全一致；以 `./` 开头的相对路径会解析错文件。统一使用绝对路径可避开这个陷阱（单测中形如 `../admin-base/src/views` 的路径同样可用）。
-
-### 排除规则
-
-插件不再内置 `components` 或 Layout、登录、错误页等硬编码排除项。未配置 `exclude` 时，root 下所有 `.vue`、`.tsx`、`.jsx` 都会参与路由生成；需要排除时必须显式声明规则。
-
-规则使用 [`.gitignore` 语法](https://git-scm.com/docs/gitignore#_pattern_format)：
-
-- 规则相对各自 `RouteRoot.directory` 匹配，不是相对应用根目录或生成后的 URL。
-- 插件只读取 `exclude` 配置数组，不会自动读取仓库或 root 下的 `.gitignore` 文件。
-- 支持 `*`、`?`、`**`、字符范围、行首 `/` 锚定和行尾 `/` 目录匹配。
-- 默认按大小写不敏感匹配，与常见 macOS/Windows 工作区的 Git 行为一致。
-- 空行与 `#` 注释忽略；后匹配的规则覆盖先匹配的规则。
-- `!` 可否定排除。需要重新包含被忽略目录中的文件时，必须先取消该目录本身的忽略，例如 `legacy/**` + `!legacy/Keep.vue`。
-- `Options.exclude` 先应用，`RouteRoot.exclude` 后应用，因此在父目录未被整体忽略的前提下，root 级否定规则可以重新包含全局排除项。
-
-本仓库在 [`admin-app/src/router/route-generator.config.ts`](../../admin-app/src/router/route-generator.config.ts) 集中维护当前排除项：
-
-```ts
-export const routeExcludePatterns = ['**/components', 'Layout.vue', 'Signin.vue', '403.vue', '404.vue'] as const
+```text
+project/
+├── src/
+│   ├── layouts/
+│   │   └── DefaultLayout.vue
+│   └── views/
+│       ├── Dashboard.vue
+│       └── System/
+│           ├── Users.vue
+│           └── UserProfile.vue
+└── packages/
+    └── reports/
+        └── src/
+            └── views/
+                ├── Overview.vue
+                └── Records.vue
 ```
 
-其中 `**/components` 匹配任意层级的组件目录，无斜杠的文件名规则同样匹配任意层级。需要只排除某个子树时可写 `Legacy/**`；需要只匹配 root 根目录时可写 `/Layout.vue`。
+配置上述 root 后，页面会映射为：
 
-启动与生成阶段会做以下校验，失败时直接抛错并中断构建：
+| 页面文件                                  | 生成路径                                                     |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `src/views/Dashboard.vue`                 | `/dashboard`                                                 |
+| `src/views/System/Users.vue`              | `/system/users`                                              |
+| `src/views/System/UserProfile.vue`        | `/system/userprofile`，同时生成 `/system/user-profile` alias |
+| `packages/reports/src/views/Overview.vue` | `/reports/overview`                                          |
+| `packages/reports/src/views/Records.vue`  | `/reports/records`                                           |
 
-| 错误信息                                        | 触发条件                                                                              |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Duplicate route moduleId: X`                   | 两个 root 使用相同 `moduleId`                                                         |
-| `Route root does not exist: X`                  | `directory` 不存在                                                                    |
-| `Route path X is declared by both A and B`      | 不同 `moduleId`，或 Layout 与 standalone 模式声明了同一路径                           |
-| `Route file X must resolve to a non-empty path` | 解析后路径为空；根目录 `Index.vue` 使用 `layout: false` 时必须显式写 `routePath: "/"` |
-| `Route file X field "layout" must be a boolean` | 页面 `<router>` 块中的 `layout` 不是布尔值                                            |
-| `<file> must contain a JSON object`             | `routeMeta.json` 不是 JSON 对象；`<router lang="json">` 内容非法 JSON 同样会抛错      |
+## 工作流程
 
-## 使用 virtual:router
+```text
+读取 Options
+  → 遍历 routeRoots
+  → 应用 Gitignore 风格 exclude 规则
+  → 读取页面 <router lang="json"> 与目录 routeMeta.json
+  → 计算 basePath + 页面相对路径
+  → 生成 Layout 路由树或 standalone 顶层路由
+  → 校验路径归属和配置合法性
+  → 输出 virtual:router
+```
 
-在应用 [`env.d.ts`](../../admin-app/env.d.ts) 中声明类型：
+Vite 钩子行为：
+
+| 钩子              | 行为                                       |
+| ----------------- | ------------------------------------------ |
+| `resolveId`       | 将 `virtual:router` 解析为内部模块 id      |
+| `load`            | 静态导入 Layout，并导出生成的路由数组      |
+| `handleHotUpdate` | 参与扫描的文件变化时失效虚拟模块并触发刷新 |
+
+## API
+
+```ts
+import { getGeneratedRouteRecords, routesGeneratorPlugin } from '@your-scope/vite-routes-generator'
+```
+
+### `routesGeneratorPlugin(options?)`
+
+返回 Vite 插件实例。插件生成：
+
+```ts
+import Layout from '<layoutDir>'
+
+export default [
+  // RouteRecordRaw[]
+]
+```
+
+### `getGeneratedRouteRecords(options?)`
+
+同步生成路由记录，不依赖 Vite 运行时。适合用于：
+
+- 路由快照测试
+- 菜单指向校验
+- 权限码一致性检查
+- 构建前的自定义静态检查
+
+## 配置项
+
+```ts
+interface Options {
+  layoutDir?: string
+  routeRoots?: RouteRoot[]
+  exclude?: readonly string[]
+}
+```
+
+| 字段         | 类型                | 默认值                         | 说明                                                           |
+| ------------ | ------------------- | ------------------------------ | -------------------------------------------------------------- |
+| `layoutDir`  | `string`            | `/src/views/Layout.vue`        | Layout 组件的导入说明符。可以使用 Vite root 相对路径或绝对路径 |
+| `routeRoots` | `RouteRoot[]`       | 当前工作目录下的 `./src/views` | 页面根目录列表。为空时退化为单 root 扫描                       |
+| `exclude`    | `readonly string[]` | `[]`                           | 应用于所有 root 的 Gitignore 风格排除规则                      |
+
+### `RouteRoot`
+
+```ts
+interface RouteRoot {
+  namePrefix?: string
+  directory: string
+  basePath?: string
+  exclude?: readonly string[]
+}
+```
+
+| 字段        | 必填 | 说明                                                  |
+| ----------- | ---- | ----------------------------------------------------- |
+| `namePrefix` | 否 | 可选的路由名称前缀；省略时直接使用路径生成路由名 |
+| `directory` | 是   | 页面根目录。建议使用绝对路径                          |
+| `basePath`  | 否   | URL 前缀，例如 `/reports`                             |
+| `exclude`   | 否   | 仅作用于当前 root 的排除规则，追加在全局 `exclude` 后 |
+
+`namePrefix` 不是 URL 前缀，也不会自动出现在浏览器地址中。它只影响路由名称。例如：
+
+```ts
+{ namePrefix: 'app', basePath: '' }
+```
+
+`Reports/Overview.vue` 会生成：
+
+```ts
+{
+  path: '/reports/overview',
+  name: 'app-reports-overview',
+}
+```
+
+对于根目录下的 `Overview.vue`，如果同时配置 `basePath`，前缀也会进入路由名称：
+
+```ts
+{ namePrefix: 'app', basePath: '/workspace' }
+// /workspace/overview
+// name: app-workspace-overview
+```
+
+省略 `namePrefix` 时，名称只由路径生成：
+
+```ts
+{ directory: appViews, basePath: '' }
+// /system/users
+// name: system-users
+```
+
+## 排除规则
+
+插件没有内置的文件名或目录排除项。未配置 `exclude` 时，root 下所有页面文件都会参与扫描。
+
+规则支持 [Gitignore 模式语法](https://git-scm.com/docs/gitignore#_pattern_format)：
+
+```ts
+routesGeneratorPlugin({
+  exclude: ['**/components', '**/*.spec.vue', 'legacy/**', '!legacy/Keep.vue']
+})
+```
+
+语义说明：
+
+- 规则相对于各自 `RouteRoot.directory`。
+- 支持 `*`、`?`、`**`、字符范围、行首 `/` 锚定和行尾 `/` 目录匹配。
+- 默认大小写不敏感。
+- 后匹配的规则覆盖先匹配的规则。
+- `!` 可以重新包含文件，但 Gitignore 对父目录的忽略规则仍然生效。
+- 插件不会自动读取项目中的 `.gitignore` 文件。
+- `directory`、页面文件和 `routeMeta.json` 使用同一套规则。
+
+## 页面路由配置
+
+页面可以通过 `<router lang="json">` 声明生成选项：
+
+```vue
+<router lang="json">
+{
+  "title": "用户列表",
+  "permission": "users:read"
+}
+</router>
+```
+
+支持以下保留字段：
+
+| 字段        | 类型      | 默认值   | 作用                                                    |
+| ----------- | --------- | -------- | ------------------------------------------------------- |
+| `isRouter`  | `boolean` | `true`   | 为 `false` 时不生成该页面的路由                         |
+| `layout`    | `boolean` | `true`   | 为 `false` 时生成不依赖 Layout 的顶层路由               |
+| `routePath` | `string`  | 文件路径 | 覆盖根据文件推导的局部路径，仍会拼接 root 的 `basePath` |
+| `param`     | `string`  | 无       | 在路径末尾追加参数段，例如 `":id"`                      |
+
+除以上字段外，其余内容都会写入顶层路由记录的 `meta`。
+
+### 显式路径
+
+`routePath` 是相对于当前 root 的局部路径：
+
+```vue
+<router lang="json">
+{
+  "routePath": "/account/profile"
+}
+</router>
+```
+
+在 `basePath: '/admin'` 的 root 中，该配置会生成 `/admin/account/profile`。
+
+显式指定 `routePath` 时，插件不会额外生成 kebab-case alias。
+
+### 动态参数
+
+```vue
+<router lang="json">
+{
+  "param": ":id"
+}
+</router>
+```
+
+对于 `Users/Detail.vue`，会生成 `/users/detail/:id`。路由记录统一设置 `props: true`，参数会作为 props 传入页面组件。
+
+## Layout 与 standalone 页面
+
+### 默认 Layout 模式
+
+页面未设置 `layout` 或设置为 `true` 时，首段路由使用 Layout：
+
+```ts
+{
+  path: '/dashboard',
+  name: 'app-dashboard',
+  component: Layout,
+  children: [
+    {
+      path: '',
+      name: 'app-dashboard-index',
+      component: () => import('/absolute/path/Dashboard.vue'),
+    },
+  ],
+}
+```
+
+嵌套页面会在各路径层级建立容器，例如：
+
+```text
+System/Users.vue
+→ /system Layout 容器
+→ /system/users 页面路由
+```
+
+### standalone 模式
+
+不需要 Layout 的页面声明：
+
+```vue
+<router lang="json">
+{
+  "layout": false,
+  "routePath": "/standalone/preview"
+}
+</router>
+```
+
+生成结果直接是一条顶层页面路由：
+
+```ts
+{
+  path: '/standalone/preview',
+  name: 'app-standalone-preview',
+  component: () => import('/absolute/path/Preview.vue'),
+}
+```
+
+standalone 页面不会创建 Layout 父级，也不会隐式创建中间路径容器。
+
+### 根路径 `Index.vue`
+
+根目录的 `Index.vue` 没有可推导路径，因此必须显式声明：
+
+```vue
+<router lang="json">
+{
+  "layout": false,
+  "routePath": "/"
+}
+</router>
+```
+
+生成 `/` 后，应用中不能再保留同一路径的手工路由或重定向，否则 Vue Router 会出现路径竞争。插件只校验自己生成的路由，无法检查应用手工路由表。
+
+### 路径冲突
+
+同一路径不能同时由 Layout 页面和 standalone 页面占用。例如：
+
+```text
+Reports/Index.vue   layout: false  → /reports
+Reports/Users.vue   layout: true   → /reports Layout 容器
+```
+
+这种配置会在生成阶段直接报错。可以：
+
+- 给 standalone 页面设置其他 `routePath`。
+- 将整个目录改为 standalone 路由。
+- 将 Layout 页面移动到其他路径。
+
+## 路径与名称规则
+
+### 路径
+
+- 去掉文件扩展名。
+- `index` 作为最后一段时会被移除。
+- 页面相对路径整体转小写。
+- 拼接 root 的 `basePath`。
+- `index.vue` 生成的页面路由使用 `path: ''`。
+
+示例：
+
+| 页面               | 生成路径                              |
+| ------------------ | ------------------------------------- |
+| `Dashboard.vue`    | `/dashboard`                          |
+| `System/Users.vue` | `/system/users`                       |
+| `System/Index.vue` | `/system` 的 index 页面               |
+| `UserProfile.vue`  | `/userprofile`，alias `/user-profile` |
+
+### 名称
+
+路由名默认格式：
+
+```text
+[<namePrefix>-]<路径分段用 - 连接>
+```
+
+例如：
+
+| 路由                    | `name`                |
+| ----------------------- | --------------------- |
+| `/system`               | `app-system`          |
+| `/system/users`         | `app-system-users`    |
+| 一级页面的 index 子路由 | `app-dashboard-index` |
+| 根 standalone 页面      | `app-index`           |
+
+不配置 `namePrefix` 时，对应名称分别是 `system`、`system-users`、`dashboard-index` 和 `index`。
+
+顶层 `name` 是 Vue Router 的路由标识。`meta.name` 没有框架级语义，不会覆盖顶层 `name`。
+
+## 元信息
+
+### 默认 `meta`
+
+每个页面路由至少会生成：
+
+```ts
+{
+  title: 'system.users',
+  permission: 'system:users:view',
+}
+```
+
+- `title` 默认为路径分段用 `.` 连接。
+- `permission` 默认为路径分段用 `:` 连接，并追加 `:view`。
+- 根 standalone 页面使用 `index` 作为默认名称空间。
+
+这些值只作为元信息声明，不会自动注册权限、修改页面标题或创建菜单。
+
+### 页面级元信息
+
+页面 `<router>` 中除保留字段外的内容会覆盖默认 `meta`：
+
+```vue
+<router lang="json">
+{
+  "title": "用户列表",
+  "permission": "users:read",
+  "icon": "users"
+}
+</router>
+```
+
+### 目录级 `routeMeta.json`
+
+目录中的 `routeMeta.json` 为该目录对应的 Layout 容器提供元信息：
+
+```text
+views/
+├── System/
+│   ├── routeMeta.json
+│   ├── Users.vue
+│   └── Roles.vue
+```
+
+```json
+{
+  "title": "系统管理",
+  "permission": "system:view",
+  "icon": "settings"
+}
+```
+
+生成的 `/system` 容器会使用这些字段。
+
+注意：
+
+- `routeMeta.json` 不生成路由。
+- 目录元信息默认不会继承到所有子页面。
+- 页面级字段只覆盖同一条路由记录上的值。
+- `isRouter`、`layout`、`param`、`routePath` 写在目录配置中时只是普通元数据，不会改变路由生成行为。
+
+### 合并顺序
+
+同一条记录上的覆盖顺序为：
+
+```text
+默认值 → 目录 routeMeta.json → 页面配置
+```
+
+## 使用 `virtual:router`
+
+在环境类型声明中注册虚拟模块：
 
 ```ts
 declare module 'virtual:router' {
@@ -144,377 +499,106 @@ declare module 'virtual:router' {
 }
 ```
 
-在 [`router/index.ts`](../../admin-app/src/router/index.ts) 中只保留手工路由，其余交给生成表：
+创建 Router：
 
 ```ts
 import { createRouter, createWebHistory } from 'vue-router'
 import generatedRoutes from 'virtual:router'
 
-const router = createRouter({
+export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/dashboard' },
-    { path: '/signin', name: 'signin', component: () => import('../views/Signin.vue') },
+    {
+      path: '/signin',
+      name: 'signin',
+      component: () => import('./views/Signin.vue')
+    },
     ...generatedRoutes,
-    { path: '/403', name: 'forbidden', component: () => import('../views/403.vue') },
-    { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/404.vue') }
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('./views/NotFound.vue')
+    }
   ]
 })
 ```
 
-当前应用通过 `routeExcludePatterns` 排除 `Layout.vue`、`Signin.vue`、`403.vue`、`404.vue`，避免登录、错误页这类手工路由与自动路由重复。守卫仍在应用侧安装，见 [`router/guards.ts`](../../admin-app/src/router/guards.ts)：
+插件不创建 Router，也不安装导航守卫。应用可以按自身需要消费 `meta`：
 
 ```ts
-// router.beforeEach((to) => { ... }) 内部
-const requiredPermission = to.meta.permission
-if (typeof requiredPermission !== 'string' || runtime.can(requiredPermission)) return true
-return { name: 'forbidden' }
+router.beforeEach((to) => {
+  const permission = to.meta.permission
+  if (typeof permission !== 'string' || canAccess(permission)) return true
+  return { name: 'forbidden' }
+})
 ```
 
-## 页面 → 路由映射
-
-### 扫描与排除
-
-递归收集 `.vue`、`.tsx`、`.jsx` 文件。目录、页面文件和 `routeMeta.json` 都先经过同一套 `exclude` 规则；规则默认为空，生成器没有隐藏的路径排除项。另有一项页面级语义配置保持不变：页面 `<router lang="json">` 中声明 `"isRouter": false` 时，该文件不生成路由。
-
-同一 root 内文件按相对路径字符串排序后依次生成；不同 root 之间按 `routeRoots` 的配置顺序输出。
-
-### 路径规则
-
-相对 root 的路径去掉扩展名后**整体转小写**（不做分词），`index` 作为末段会被去掉；再与 `basePath` 分段拼接。下表前三行为本仓库真实页面，其余为规则示例：
-
-| 页面文件                                          | root / basePath     | 生成 `path`                    | 说明                                                           |
-| ------------------------------------------------- | ------------------- | ------------------------------ | -------------------------------------------------------------- |
-| `admin-base/src/views/Dashboard.vue`              | `admin-base` / `''` | `/dashboard`                   | 一级页面：Layout + `path: ''` 的 index 子路由                  |
-| `admin-base/src/views/System/Users.vue`           | `admin-base` / `''` | `/system/users`                | 二级页面：`/system` 容器下的子路由                             |
-| `domain-demo/src/views/Records.vue`               | `demo` / `'/demo'`  | `/demo/records`                | 前缀由 root 提供，页面文件名不再写 `demo`                      |
-| `Preview.vue` + `"layout": false`                 | 无前缀              | `/preview`                     | 独立顶层页面，不生成 Layout 父级                               |
-| `Reports/Index.vue` + `"layout": false`           | 无前缀              | `/reports`                     | 独立顶层页面，不生成 `/reports` Layout 容器                    |
-| `Index.vue` + `"layout": false, "routePath": "/"` | 无前缀              | `/`                            | 根页面必须显式声明根路径                                       |
-| `System/UserProfile.vue`                          | 无前缀              | `/system/userprofile`          | PascalCase 只转小写连写，同时生成 alias `/system/user-profile` |
-| `System/Detail.vue` + `"param": ":id"`            | 无前缀              | `/system/detail/:id`           | 参数段追加到叶子路径（及 alias）末尾                           |
-| `System/index.vue`                                | 无前缀              | `/system` 的 `path: ''` 子路由 | 该分组不再生成 `redirect`                                      |
-
-命名与结构约定：
-
-| 项          | 取值                                                                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `name`      | Layout 页面使用 `moduleId` + `-` + 路径分段，index 子路由再加 `-index`；standalone 顶层页面直接使用模块和路径，根页面为 `<moduleId>-index` |
-| `component` | Layout 一级容器为 `Layout`；普通叶子页面和 standalone 页面为动态 import                                                                    |
-| `props`     | 全部为 `true`，路由参数作为 props 传入页面                                                                                                 |
-| `children`  | Layout 页面会建立容器记录；standalone 页面是叶子记录，没有 Layout 或路径容器                                                               |
-| `redirect`  | 多级分组在没有 index 子路由时指向该分组下**按相对路径排序后最后处理**的叶子页面；放一个 `index.vue` 可关闭它                               |
-| `alias`     | 仅当未显式指定 `routePath` 且 kebab 形式与规范路径不同时生成，值为 kebab-case 路径                                                         |
-
-`/system` 分组在本仓库生成的真实结构（省略绝对路径）：
-
-```js
-{
-  path: '/system',
-  name: 'admin-base-system',
-  meta: { title: 'system', permission: 'system:view' },
-  props: true,
-  component: Layout,
-  redirect: '/system/users',
-  children: [
-    {
-      path: '/system/users',
-      name: 'admin-base-system-users',
-      meta: { title: '用户管理', permission: 'user:read' },
-      props: true,
-      component: () => import('<绝对路径>/System/Users.vue'),
-    },
-    // ...permissions / roles / tenants
-  ],
-}
-```
-
-因 PascalCase 会得到 `/system/userprofile` 这类路径，需要稳定、可读的对外 URL 时，优先使用全小写文件名或显式 `routePath` 固定规范路径；对外链接请统一使用小写形式。
-
-## 页面元信息
-
-生成路由的 `meta` 有两个来源：页面级 `<router lang="json">` 和目录级 `routeMeta.json`。除页面级的四个生成字段 `isRouter`、`layout`、`param`、`routePath` 外，两者都只写入 `meta`，不参与组件加载。
-
-### 页面级：`<router lang="json">`
-
-页面顶部的自定义块会被解析为 JSON（见 [`System/Users.vue`](../../admin-base/src/views/System/Users.vue)）：
-
-```vue
-<router lang="json">
-{
-  "title": "用户管理",
-  "permission": "user:read"
-}
-</router>
-```
-
-| 字段        | 作用                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------ |
-| `isRouter`  | 为 `false` 时整个文件不生成路由                                                            |
-| `layout`    | 默认 `true`；为 `false` 时直接生成顶层 standalone 路由，不创建 Layout 父级                 |
-| `param`     | 追加到 Layout 多级叶子或 standalone 路径末尾的参数段，通常写 `":id"`；普通一级页面不生效   |
-| `routePath` | 覆盖按文件名推导的局部路径；仍会与 `basePath` 拼接、不做小写化、且**不再生成 kebab alias** |
-| 其它字段    | 原样写入该页面路由的 `route.meta`，如 `title`、`permission`                                |
-
-`routePath` 是**相对 root 的局部片段**。带 `basePath: '/demo'` 的 root 中应写 `"/records"` 得到 `/demo/records`；写成 `"/demo/records"` 会得到 `/demo/demo/records`。
-
-### 无 Layout 页面
-
-不依赖 Layout 的页面在页面配置中声明 `"layout": false`：
-
-```vue
-<router lang="json">
-{
-  "layout": false,
-  "routePath": "/reports/preview",
-  "title": "报表预览"
-}
-</router>
-```
-
-生成结果直接是一条顶层页面路由，不再创建 `/reports` Layout 容器：
-
-```js
-{
-  path: '/reports/preview',
-  name: 'demo-reports-preview',
-  meta: { title: '报表预览', permission: 'reports:preview:view' },
-  props: true,
-  component: () => import('<绝对路径>/Reports/Preview.vue'),
-}
-```
-
-根目录 `Index.vue` 没有可推导的文件路径，因此必须显式声明：
-
-```vue
-<router lang="json">
-{ "layout": false, "routePath": "/" }
-</router>
-```
-
-生成 `/` 后，应用要同时移除或调整 [`router/index.ts`](../../admin-app/src/router/index.ts) 中现有的根重定向，否则手工 `/` 路由会与生成记录争用同一路径。生成器无法检查手工路由表，这类冲突仍需应用侧保证唯一。
-
-同一路径不能同时被 Layout 页面和 standalone 页面使用。例如 `Reports/Index.vue` 以 `layout: false` 生成 `/reports` 时，同目录的 `Reports/Users.vue` 不能再通过 `/reports` Layout 容器生成 `/reports/users`；构建会报路径归属冲突。可将该目录整体改为 standalone，或给独立页配置另一个 `routePath`。
-
-### 目录级：`routeMeta.json`
-
-**作用**：给「某个目录对应的路由容器」提供一组 `meta` 覆盖值，可声明分组级标题、权限码或自定义展示字段（消费方见下文）。它**不生成路由、不改变路径、不决定组件**，也不是让子页面继承的共享配置——只作用于与该目录同名的那一条容器记录（以及该目录下 `index.vue` 生成的 index 子路由）。
-
-```text
-admin-base/src/views/
-├── System/
-│   ├── routeMeta.json          # key: /system
-│   ├── Users.vue
-│   └── Settings/
-│       ├── routeMeta.json      # key: /system/settings
-│       └── Profile.vue
-├── Dashboard.vue
-└── components/                 # 整个目录被扫描器跳过
-```
-
-| 文件位置                         | 索引 key           | 生效的路由记录                                                  |
-| -------------------------------- | ------------------ | --------------------------------------------------------------- |
-| `System/routeMeta.json`          | `/system`          | 容器 `/system`，以及 `System/index.vue` 的 index 子路由         |
-| `System/Settings/routeMeta.json` | `/system/settings` | 容器 `/system/settings`，以及该目录 `index.vue` 的 index 子路由 |
-| `<root>/routeMeta.json`          | `/`                | 无对应记录，生成器不产生根路径路由                              |
-| `components/routeMeta.json`      | —                  | 扫描时跳过整个 `components` 目录                                |
-
-key 由「相对该 root 的目录路径」转小写得到，因此 `System/routeMeta.json` 能匹配已小写化的 `/system`。文件必须是 JSON 对象，数组或 `null` 会抛 `<file> must contain a JSON object`；`.json` 不是页面文件，本身不会生成路由；改动会触发 `full-reload`（见「热更新与测试」）。
-
-| 写入字段                                      | 行为                                                                                                                       |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `title`                                       | 覆盖容器默认的 `parts.join('.')`                                                                                           |
-| `permission`                                  | 覆盖容器默认权限码，应用守卫读取 `meta.permission`                                                                         |
-| 任意自定义字段                                | 原样写入 `meta`，如 `icon`、`group`、`hidden`、`keepAlive`；生成器不做字段白名单                                           |
-| `isRouter` / `layout` / `param` / `routePath` | **只当作普通 meta 字段**。这四个生成字段仅在页面 `<router>` 块中被解构，写在目录配置里不会屏蔽路由、切换 Layout 或改变路径 |
-
-**应用侧消费**：`meta` 只是声明，插件不渲染任何 UI。本仓库目前只有 [`router/guards.ts`](../../admin-app/src/router/guards.ts) 消费 `meta.permission`；Layout 的菜单来自模块的 `navigation` 声明（`runtime.getNavigation()`），`title` 与自定义字段需要应用自行读取（面包屑、页签、文档标题等）。子页面要自定义访问控制，只能在页面 `<router>` 块中声明 `permission`；不声明时使用默认 `parts.join(':') + ':view'`。
-
-**生效示例**（以下均取自本插件的实际输出）：
-
-`System/routeMeta.json` 内容：
-
-```json
-{ "title": "系统管理", "permission": "system:read", "icon": "setting" }
-```
-
-`System/Users.vue` 的页面块：
-
-```vue
-<router lang="json">
-{ "title": "用户管理" }
-</router>
-```
-
-| 生成的记录                | `meta`                                                              |
-| ------------------------- | ------------------------------------------------------------------- |
-| `/system`（容器）         | `{ title: '系统管理', permission: 'system:read', icon: 'setting' }` |
-| `/system/users`（子页面） | `{ title: '用户管理', permission: 'system:users:view' }`            |
-
-容器拿到了目录配置；子页面**没有继承** `icon` 和 `permission`，只保留页面自己的 `title` 与默认 `permission`。当目录配置和页面配置落在同一条记录上时，叠加关系才体现出来：`Dashboard.vue`（`<router>` 写 `title: '页面标题'`）配合 `Dashboard/routeMeta.json`（`title: '目录标题'`、`icon: 'home'`），容器 `meta` 为目录标题，而 `/dashboard` 的 index 子路由为 `{ title: '页面标题', permission: 'dashboard:view', icon: 'home' }`——页面覆盖 `title`，目录的 `icon` 仍保留。
-
-### `meta` 合并规则
-
-同一条路由记录上的覆盖顺序（后者覆盖前者）：
-
-```text
-默认值  →  目录 routeMeta.json  →  页面 <router lang="json"> 的其它字段
-```
-
-| 默认项       | 计算方式                    | 示例（`/system/users`） |
-| ------------ | --------------------------- | ----------------------- |
-| `title`      | `parts.join('.')`           | `system.users`          |
-| `permission` | `parts.join(':') + ':view'` | `system:users:view`     |
-
-注意：目录配置与页面配置通常作用于**不同记录**（容器 vs 叶子），此时不存在覆盖关系；仅写 `title` 的页面配置不会移除默认 `permission`。想确认某个目录配置是否生效，用 `getGeneratedRouteRecords()` 得到 `routes` 后打印 `routes.find(r => r.path === '/system')?.meta` 即可（用法见「热更新与测试」）。
-
-## 与前端导航菜单结合
-
-生成器只产出路由表，**不生成菜单**。菜单属于模块协议：模块在 `navigation` 中声明条目，应用创建 runtime 时注册模块，`runtime.getNavigation()` 按当前权限过滤后交给 Layout 渲染。路由与菜单各自声明，靠 **path 对齐**。
-
-```text
-模块 navigation 声明
-  → createAdminRuntime({ modules })
-  → runtime.getNavigation()：can(permission) 过滤，丢弃空分组
-  → Layout.vue 侧边栏（v-for key=id；isActive 用 route.path 匹配）
-路由侧：virtual:router → createRouter → 守卫读 route.meta.permission
-```
-
-不让生成器直接生成菜单，是因为路由粒度不等于导航粒度：详情页、编辑页有路由但不该进菜单，`isRouter: false` 的页面则连路由都不生成；分组、排序、图标等属于业务语义，不在文件路径里；导航还需要与模块权限声明一起评审，避免新增页面绕过菜单和权限评审。
-
-### 菜单条目结构
-
-`NavigationItem` 定义在 [`core/src/composition.ts`](../../core/src/composition.ts)：
-
-| 字段         | 类型               | 必填 | 说明                                                                       |
-| ------------ | ------------------ | ---- | -------------------------------------------------------------------------- |
-| `id`         | `string`           | 是   | 列表渲染的 key；顶层项在所有模块合并后应唯一                               |
-| `label`      | `string`           | 是   | 菜单文案，与 `route.meta.title` 相互独立                                   |
-| `to`         | `string`           | 否   | 目标路径，应等于生成路由的 `path`（含 `basePath`）；纯分组项不写           |
-| `permission` | `string`           | 否   | 控制菜单可见性；`can()` 支持 `*` 通配；与路由 `meta.permission` 是两套声明 |
-| `children`   | `NavigationItem[]` | 否   | 子菜单；自身权限不通过时整组移除，子项全被移除且无 `to` 时分组也移除       |
-
-本仓库的声明见 [`admin-base/src/index.ts`](../../admin-base/src/index.ts) 和 [`domain-demo/src/index.ts`](../../domain-demo/src/index.ts)：
-
-```ts
-navigation: [
-  { id: 'dashboard', label: '工作台', to: '/dashboard' },
-  {
-    id: 'system',
-    label: '系统管理',
-    children: [
-      { id: 'users', label: '用户管理', to: '/system/users', permission: 'user:read' }
-      // ...
-    ]
-  }
-]
-```
-
-### 菜单与生成路由的对照
-
-| 菜单项   | `to`             | 页面文件                      | 生成的 `path`    |
-| -------- | ---------------- | ----------------------------- | ---------------- |
-| 工作台   | `/dashboard`     | `admin-base/Dashboard.vue`    | `/dashboard`     |
-| 用户管理 | `/system/users`  | `admin-base/System/Users.vue` | `/system/users`  |
-| 业务概览 | `/demo/overview` | `domain-demo/Overview.vue`    | `/demo/overview` |
-| 项目记录 | `/demo/records`  | `domain-demo/Records.vue`     | `/demo/records`  |
-
-`to` 写**生成后的 URL**：`basePath` 由 root 提供，不能省掉 `/demo`；也不要写 `System/Users.vue` 这类文件路径或 kebab 别名形式。
-
-### 对齐规则与常见错位
-
-| 规则             | 说明                                                                                                                                                              |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 路径对齐         | `to` 与生成 `path` 必须完全一致；不一致时点击匹配不到路由，会落到全局 404                                                                                         |
-| 分组不是路由     | 有 `children`、无 `to` 的项只是菜单分组；若该目录下还有页面，生成器会额外生成 `/system` 容器并 `redirect`，两者不是同一概念                                       |
-| 顺序独立         | 菜单顺序 = 模块注册顺序 + 声明顺序；生成器的文件扫描顺序不影响菜单                                                                                                |
-| 新增页面要补菜单 | 只加 `.vue` 会有路由无入口；只加菜单不建页面会 404，建议用下方单测兜住                                                                                            |
-| 两套权限         | 菜单 `permission` 控制可见性，路由 `meta.permission` 控制可访问性，两处应使用同一个权限码                                                                         |
-| 高亮按 path      | [`Layout.vue`](../../admin-base/src/views/Layout.vue) 的 `isActive` 用 `route.path` 与 `to` 做等值/前缀比较；通过 alias 访问时不命中 canonical `to`，菜单不会高亮 |
-| 文案两处维护     | 菜单文案是 `label`，不读取 `meta.title`；改标题不会同步菜单                                                                                                       |
-
-菜单隐藏从来不是访问控制：路由守卫只读 `to.meta.permission`。例如新增 `System/Audit.vue` 未写 `<router>` 时，路由权限是默认的 `system:audit:view`，而菜单若声明 `audit:read`：
-
-- 用户只有 `audit:read`：菜单可见，点击被守卫拦到 403；
-- 用户只有 `system:audit:view`：菜单不可见，但直接输入 URL 可以进入。
-
-因此两处应引用同一个权限码（通常来自模块的 `permissions` 声明）；以路由 `meta.permission` 为准生成或校验菜单更稳妥。
-
-### 一致性校验
-
-`getGeneratedRouteRecords()` 也可以在单测里校验「菜单指向的路由都存在」：
-
-```ts
-import type { NavigationItem } from '@unoadmin/core'
-import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
-
-const routes = getGeneratedRouteRecords({ routeRoots: [/* 与 vite.config.ts 中的三个 root 保持一致，不能留空 */] })
-const paths = new Set<string>()
-const collect = (records: typeof routes) =>
-  records.forEach((record) => {
-    if (record.path) paths.add(record.path)
-    if (record.children) collect(record.children)
-  })
-collect(routes)
-
-const flatten = (items: NavigationItem[]): NavigationItem[] => items.flatMap((item) => [item, ...(item.children ? flatten(item.children) : [])])
-
-for (const item of flatten(modules.flatMap((module) => module.navigation))) {
-  if (item.to) expect(paths.has(item.to)).toBe(true)
-}
-```
-
-`modules` 是应用组合根导出的模块清单（见 [`admin-app/src/modules.ts`](../../admin-app/src/modules.ts)）。同一循环里还可比对 `path` 对应的 `meta.permission` 与菜单 `permission`，防止权限码错位。
-
-### 当前实现的边界
-
-- Layout 只渲染 `label` 与 `to`，没有 icon、badge、排序权重字段；需要时同时扩展 `NavigationItem` 与 Layout。
-- 菜单不读 `route.meta`：`title`、`icon` 等目录元信息不会自动出现在菜单里。
-- `children` 子项漏写 `to` 时，Layout 会把它渲染成指向 `/404` 的链接（`child.to || '/404'`）；这只是兜底，不应作为正常配置。
-- 面包屑和 `document.title` 尚未实现，应用侧可读取 `useRoute().meta.title` 自行实现。
-- 后端下发的远端菜单只能过滤/排序已声明条目，不能凭返回值加载未知组件（见[架构文档 §6.1](../../../../docs/frontend-architecture.md)）。
+前端权限判断不是安全边界，服务端仍需独立鉴权。
 
 ## 热更新与测试
 
-- `routeRoots` 目录下未被 `exclude` 命中的文件变化（含参与扫描的 `routeMeta.json`）会使 `virtual:router` 失效并触发整页刷新；被排除文件的变化不会触发路由刷新。
-- 新建目录若开发服务未感知到文件系统事件，重启 Vite 即可；生产构建每次都会重新扫描。
-- `getGeneratedRouteRecords(options)` 是同步生成函数，不依赖 Vite 运行时，适合在单测中锁定路径契约（见 [`App.spec.ts`](../../admin-app/src/__tests__/App.spec.ts)）：
+开发环境下：
+
+- 未排除页面文件发生变化时，`virtual:router` 会失效并刷新页面。
+- 被排除文件不会触发路由刷新。
+- 新增目录若未被文件监听器感知，可重启 Vite。
+
+使用同步 API 编写路由契约测试：
 
 ```ts
-import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
+import { expect, it } from 'vitest'
+import { getGeneratedRouteRecords } from '@your-scope/vite-routes-generator'
 
-const routes = getGeneratedRouteRecords({
-  routeRoots: [
-    { moduleId: 'admin-base', directory: adminBaseViews, basePath: '' },
-    { moduleId: 'demo', directory: demoViews, basePath: '/demo' }
-  ]
+it('contains the reports page', () => {
+  const routes = getGeneratedRouteRecords({
+    routeRoots: [
+      {
+        namePrefix: 'reports',
+        directory: '/absolute/path/to/reports/views',
+        basePath: '/reports'
+      }
+    ]
+  })
+
+  const reportsRoute = routes.find((route) => route.path === '/reports')
+  expect(reportsRoute?.children?.some((route) => route.path === '/reports/overview')).toBe(true)
 })
 ```
 
-建议在 CI 中执行（脚本来自根 [`package.json`](../../../../package.json) 与各 package）：
+## 常见错误
 
-```bash
-pnpm --filter @unoadmin/vite-plugins type-check   # 插件自身类型检查
-pnpm typecheck                                   # 应用类型检查（含 virtual:router 声明）
-pnpm test                                        # 单测：生成路由契约 + 守卫
-pnpm build                                       # 生产构建，验证跨 package 动态 import
-pnpm --filter @unoadmin/admin-app test:e2e --project=chromium  # 深链接直开与刷新
-```
-
-端到端测试需先执行 `pnpm exec playwright install chromium`。history 模式要求静态服务器把未知非静态请求回退到同一个 `index.html`（Nginx `try_files $uri $uri/ /index.html;`），详见 [`admin-app/README.md`](../../admin-app/README.md)。
+| 错误                                            | 原因                                            |
+| ----------------------------------------------- | ----------------------------------------------- |
+| `Route root does not exist: X`                  | `directory` 不存在或路径错误                    |
+| `Route path X is declared by both A and B`      | 多个 root 或 Layout/standalone 模式占用了同一路径 |
+| `Route file X must resolve to a non-empty path` | 页面无法推导出路径                              |
+| `field "layout" must be a boolean`              | 页面 `layout` 配置不是布尔值                    |
+| `must contain a JSON object`                    | `routeMeta.json` 或页面 JSON 配置非法           |
 
 ## 已知限制
 
-| 限制                                                                                                                                        | 规避方式                                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 带 `basePath` 的 root 内，`routeMeta.json` 的 key 不含前缀，而查找使用拼接后的完整路径，因此**不会命中**（详见「目录级 `routeMeta.json`」） | 把分组元信息写进各页面的 `<router lang="json">`；或改用不带 `basePath` 的 root（会改变 URL 结构） |
-| `routeMeta.json` 只作用于同名容器，不下发到子页面                                                                                           | 子页面各自声明 `title` / `permission`                                                             |
-| `param` 对普通一级 Layout 页面不生效                                                                                                        | 使用多级路径，或将页面声明为 `layout: false`                                                      |
-| canonical 路径是小写连写，PascalCase 只额外提供 kebab alias                                                                                 | 用全小写文件名或显式 `routePath` 固定 URL                                                         |
-| 插件只在构建期扫描，不处理运行时按后端返回的路径加载组件                                                                                    | 后端只返回权限码/菜单标识，页面由已注册模块匹配                                                   |
-| 导出的是 TS 源码而非构建产物，消费者需能编译 TypeScript                                                                                     | 目前仅用于 workspace 内应用；对外发布需先补构建与 `exports` 产物                                  |
+- 带 `basePath` 的 root 中，`routeMeta.json` 的索引 key 不包含前缀，因此当前无法匹配对应容器。
+- 根目录的 `routeMeta.json` 没有对应路由容器，不会产生根路径元信息。
+- `routeMeta.json` 不会向所有子页面继承。
+- 普通一级 Layout 页面对 `param` 不生效；需要动态一级路径时可使用嵌套页面或 standalone 页面。
+- 只支持一个全局 `layoutDir`，尚不支持按页面选择不同 Layout 组件。
+- 即使所有页面都使用 `layout: false`，虚拟模块仍会静态导入 `layoutDir`，因此该导入路径必须有效。
+- canonical 路径会整体转小写，PascalCase 只额外提供 kebab-case alias。
+- 路由名称由可选 `namePrefix` 与路径共同生成，目前不能在页面配置中单独覆盖。
+- 插件只在 Vite 构建阶段扫描页面，不负责运行时远程路由或后端下发组件。
+- 插件不生成菜单、面包屑、页面标题、权限守卫或登录流程。
 
-## 相关文档
+## 设计边界
 
-- [前端架构设计 §10 路由生成插件](../../../../docs/frontend-architecture.md)
-- [admin-app README](../../admin-app/README.md)
+插件解决的问题是“文件如何变成 Vue Router 路由记录”。
+
+它刻意不处理：
+
+- 应用如何创建 Router。
+- 用户是否登录。
+- 用户是否拥有访问权限。
+- 侧边栏、菜单和页签如何生成。
+- 后端接口如何组织。
+- 页面采用何种 UI 框架或视觉规范。
+
+这些能力应由应用或独立模块实现，通过 `path`、`name` 和 `meta` 与生成路由对接。

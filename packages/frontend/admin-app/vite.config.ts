@@ -26,9 +26,9 @@ export default defineConfig({
       // Keep build-time generation aligned with the route contract tests.
       exclude: routeExcludePatterns,
       routeRoots: [
-        { moduleId: 'admin-base', directory: adminBaseViews, basePath: '' },
-        { moduleId: 'demo', directory: demoViews, basePath: '/demo' },
-        { moduleId: 'app', directory: appViews, basePath: '' }
+        { directory: adminBaseViews, basePath: '' },
+        { namePrefix: 'demo', directory: demoViews, basePath: '/demo' },
+        { namePrefix: 'app', directory: appViews, basePath: '' }
       ]
     })
   ],

@@ -50,7 +50,7 @@ describe('routes-generator exclusions', () => {
 
     const paths = collectRoutePaths(
       getGeneratedRouteRecords({
-        routeRoots: [{ moduleId: 'test', directory }]
+        routeRoots: [{ namePrefix: 'test', directory }]
       })
     )
 
@@ -71,7 +71,7 @@ describe('routes-generator exclusions', () => {
       exclude: ['components/', 'System/*.vue'],
       routeRoots: [
         {
-          moduleId: 'test',
+          namePrefix: 'test',
           directory,
           exclude: ['!System/Users.vue', 'legacy/**', 'System/routeMeta.json']
         }
@@ -90,13 +90,43 @@ describe('routes-generator exclusions', () => {
 })
 
 describe('routes-generator layout modes', () => {
+  it('prepends namePrefix only to generated route names', () => {
+    const directory = createRouteRoot({
+      'Dashboard.vue': '',
+    })
+    const routes = getGeneratedRouteRecords({
+      routeRoots: [{ namePrefix: 'app', directory }],
+    })
+
+    expect(routes[0]?.path).toBe('/dashboard')
+    expect(routes[0]?.name).toBe('app-dashboard')
+    expect(routes[0]?.children?.[0]?.name).toBe('app-dashboard-index')
+  })
+
+  it('generates path-only route names when namePrefix is omitted', () => {
+    const directory = createRouteRoot({
+      'Dashboard.vue': '',
+      'System/Users.vue': '',
+    })
+    const routes = getGeneratedRouteRecords({
+      routeRoots: [{ directory }],
+    })
+    const dashboard = routes.find((route) => route.path === '/dashboard')
+    const system = routes.find((route) => route.path === '/system')
+
+    expect(dashboard?.name).toBe('dashboard')
+    expect(dashboard?.children?.[0]?.name).toBe('dashboard-index')
+    expect(system?.name).toBe('system')
+    expect(system?.children?.find((route) => route.path === '/system/users')?.name).toBe('system-users')
+  })
+
   it('creates standalone pages without a Layout parent', () => {
     const directory = createRouteRoot({
       'Dashboard.vue': '',
       'Preview.vue': routerConfig({ layout: false, routePath: '/preview', title: '预览' }),
     })
     const routes = getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })
     const preview = routes.find((route) => route.path === '/preview')
     const dashboard = routes.find((route) => route.path === '/dashboard')
@@ -114,7 +144,7 @@ describe('routes-generator layout modes', () => {
       'Index.vue': routerConfig({ layout: false, routePath: '/' }),
     })
     const routes = getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })
 
     expect(routes).toHaveLength(1)
@@ -132,7 +162,7 @@ describe('routes-generator layout modes', () => {
       'Reports/ReportPreview.vue': routerConfig({ layout: false, param: ':id' }),
     })
     const routes = getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })
 
     expect(routes.map((route) => route.path)).toEqual(['/reports/reportpreview/:id'])
@@ -146,7 +176,7 @@ describe('routes-generator layout modes', () => {
       'Reports/Users.vue': '',
     })
     const routes = getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })
 
     expect(new Set(routes.map((route) => route.path))).toEqual(new Set(['/reports', '/reports/preview']))
@@ -160,7 +190,7 @@ describe('routes-generator layout modes', () => {
     })
 
     expect(() => getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })).toThrow('must resolve to a non-empty path')
   })
 
@@ -171,16 +201,16 @@ describe('routes-generator layout modes', () => {
     })
 
     expect(() => getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
-    })).toThrow('Route path /reports is declared by both test (standalone) and test (layout)')
+      routeRoots: [{ namePrefix: 'test', directory }],
+    })).toThrow('Route path /reports is declared by both "test" (standalone) and "test" (layout)')
 
     const layoutFirstDirectory = createRouteRoot({
       'Reports/Alpha.vue': '',
       'Reports/Preview.vue': routerConfig({ layout: false, routePath: '/reports' }),
     })
     expect(() => getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory: layoutFirstDirectory }],
-    })).toThrow('Route path /reports is declared by both test (layout) and test (standalone)')
+      routeRoots: [{ namePrefix: 'test', directory: layoutFirstDirectory }],
+    })).toThrow('Route path /reports is declared by both "test" (layout) and "test" (standalone)')
   })
 
   it('rejects a non-boolean layout value', () => {
@@ -189,7 +219,7 @@ describe('routes-generator layout modes', () => {
     })
 
     expect(() => getGeneratedRouteRecords({
-      routeRoots: [{ moduleId: 'test', directory }],
+      routeRoots: [{ namePrefix: 'test', directory }],
     })).toThrow('field "layout" must be a boolean')
   })
 })
