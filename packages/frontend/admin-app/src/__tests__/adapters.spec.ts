@@ -183,7 +183,38 @@ describe('api client', () => {
     expect(store.getRefresh()).toBe('refresh-2')
   })
 
+  it('discards a stale refresh result that lost the race to a tenant switch', async () => {
+    const store = createTokenStore(memoryStorage())
+    store.setTokens('expired-access', 'refresh-1')
+    const fetchMock = vi.fn(async (request: Request) => {
+      if (request.url.endsWith('/auth/refresh')) {
+        // 刷新途中用户切换租户，令牌已被新会话替换。
+        store.setTokens('tenant-access', 'refresh-3')
+        return jsonResponse({ token: 'stale-access', refreshToken: 'refresh-stale' })
+      }
+      if (request.headers.get('Authorization') === 'Bearer tenant-access') {
+        return jsonResponse({ items: [], total: 0 })
+      }
+      return jsonResponse({ error: 'unauthorized' }, 401)
+    })
+
+    const client = createApiClient({
+      baseURL: 'http://api.test/api/v1/',
+      getAccessToken: () => store.getAccess(),
+      getRefreshToken: () => store.getRefresh(),
+      getTenantId: () => null,
+      onTokens: (access, refresh) => store.setTokens(access, refresh),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(client.request('users')).resolves.toEqual({ items: [], total: 0 })
+    // 旧刷新响应携带的仍是旧租户，必须丢弃，只重放不覆盖。
+    expect(store.getAccess()).toBe('tenant-access')
+    expect(store.getRefresh()).toBe('refresh-3')
+  })
+
   it('keeps the session when refresh fails for network reasons', async () => {
+    const store = createTokenStore(memoryStorage())
     store.setTokens('expired-access', 'refresh-1')
     const onAuthFailed = vi.fn()
     const fetchMock = vi.fn(async (request: Request) => {
