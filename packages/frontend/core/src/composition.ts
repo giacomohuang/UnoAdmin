@@ -1,5 +1,4 @@
 import type { BaseServices } from './services'
-import type { FileStoragePort } from './storage'
 
 /** A navigation item is declared by a module and filtered at runtime. */
 export interface NavigationItem {
@@ -35,7 +34,6 @@ export interface AdminModuleContext {
 /** All services are supplied by the application so packages remain backend-neutral. */
 export interface AppServices {
   base: BaseServices
-  storage: FileStoragePort
 }
 
 /** Optional brand values consumed by the base layout. */
