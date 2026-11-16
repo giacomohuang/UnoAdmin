@@ -332,9 +332,6 @@ importers:
         specifier: workspace:*
         version: link:../ui
     devDependencies:
-      pinia:
-        specifier: ^4.0.2
-        version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3))
       typescript:
         specifier: ~6.0.0
         version: 6.0.3
@@ -356,9 +353,6 @@ importers:
 
   packages/frontend/domain-demo:
     dependencies:
-      '@unoadmin/admin-base':
-        specifier: workspace:*
-        version: link:../admin-base
       '@unoadmin/core':
         specifier: workspace:*
         version: link:../core

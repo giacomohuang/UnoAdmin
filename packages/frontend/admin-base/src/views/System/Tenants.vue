@@ -3,16 +3,18 @@ import { onMounted, ref } from 'vue'
 
 import type { Tenant } from '@unoadmin/core'
 
-import { useAdminRuntime } from '../../runtime'
+import { useAdminBaseContext } from '../../composables/useAdminBaseContext'
+import { useAdminBaseServices } from '../../composables/useAdminBaseServices'
 
-const runtime = useAdminRuntime()
+const { session } = useAdminBaseContext()
+const services = useAdminBaseServices()
 const tenants = ref<Tenant[]>([])
 const loading = ref(false)
 
 /** Load tenant records from the same service port used by the Layout selector. */
 async function loadTenants() {
   loading.value = true
-  tenants.value = (await runtime.services.base.tenants.list({ page: 1, pageSize: 50 })).items
+  tenants.value = (await services.tenants.list({ page: 1, pageSize: 50 })).items
   loading.value = false
 }
 
@@ -38,7 +40,7 @@ onMounted(loadTenants)
             <td><strong>{{ tenant.name }}</strong></td>
             <td>{{ tenant.code }}</td>
             <td><span class="base-status" :class="{ 'base-status--muted': tenant.status !== 'active' }">{{ tenant.status === 'active' ? '正常' : '暂停' }}</span></td>
-            <td>{{ runtime.state.currentTenant?.id === tenant.id ? '当前租户' : '可切换' }}</td>
+            <td>{{ session.state.currentTenant?.id === tenant.id ? '当前租户' : '可切换' }}</td>
           </tr>
         </tbody>
       </table>

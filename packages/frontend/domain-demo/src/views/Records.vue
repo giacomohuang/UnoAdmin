@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
-import type { DemoAppServices, DemoRecord } from '@unoadmin/domain-demo'
+import { useDemoServices } from '../composables/useDemoServices'
+import type { DemoRecord } from '@unoadmin/domain-demo'
 
-const runtime = useAdminRuntime<DemoAppServices>()
+const services = useDemoServices()
 const records = ref<DemoRecord[]>([])
 const loading = ref(false)
 
 /** Load the demo record list through its package-owned service contract. */
 async function loadRecords() {
   loading.value = true
-  records.value = (await runtime.services.demo.listRecords({ page: 1, pageSize: 20 })).items
+  records.value = (await services.listRecords({ page: 1, pageSize: 20 })).items
   loading.value = false
 }
 

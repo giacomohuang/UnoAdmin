@@ -3,29 +3,29 @@ import type { NavigationItem, TenantId } from '@unoadmin/core'
 import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
-import { useAdminRuntime } from '../runtime'
+import { useAdminBaseContext } from '../composables/useAdminBaseContext'
 
-const runtime = useAdminRuntime()
+const { branding, modules, session, getNavigation } = useAdminBaseContext()
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
-const navigation = computed(() => runtime.getNavigation())
+const navigation = computed(getNavigation)
 
 /** Keep the active navigation state aligned with nested route paths. */
 function isActive(item: NavigationItem) {
   return Boolean(item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`)))
 }
 
-/** Switch the runtime tenant and close the mobile navigation affordance. */
+/** Switch the active tenant and close the mobile navigation affordance. */
 async function handleTenantChange(event: Event) {
   const target = event.target as HTMLSelectElement
-  await runtime.switchTenant(target.value as TenantId)
+  await session.switchTenant(target.value as TenantId)
   sidebarOpen.value = false
 }
 
 /** End the local session before returning to the manually declared sign-in route. */
 async function signOut() {
-  await runtime.signOut()
+  await session.signOut()
   await router.push('/signin')
 }
 </script>
@@ -35,9 +35,9 @@ async function signOut() {
   <div class="admin-layout">
     <aside class="admin-sidebar" :class="{ 'admin-sidebar--open': sidebarOpen }">
       <div class="admin-brand">
-        <span class="admin-brand__mark">{{ runtime.branding.productMark }}</span>
+        <span class="admin-brand__mark">{{ branding.productMark }}</span>
         <div>
-          <strong>{{ runtime.branding.productName }}</strong>
+          <strong>{{ branding.productName }}</strong>
           <span>管理工作台</span>
         </div>
       </div>
@@ -57,7 +57,7 @@ async function signOut() {
       </nav>
 
       <div class="admin-sidebar__footer">
-        <span>模块 {{ runtime.modules.length }} 个</span>
+        <span>模块 {{ modules.length }} 个</span>
         <span>SPA 模式</span>
       </div>
     </aside>
@@ -73,17 +73,17 @@ async function signOut() {
         </button>
         <div class="admin-topbar__context">
           <span class="admin-topbar__eyebrow">当前空间</span>
-          <select class="admin-tenant-select" :value="runtime.state.currentTenant?.id" aria-label="切换租户" @change="handleTenantChange">
-            <option v-for="tenant in runtime.state.tenants" :key="tenant.id" :value="tenant.id">
+          <select class="admin-tenant-select" :value="session.state.currentTenant?.id" aria-label="切换租户" @change="handleTenantChange">
+            <option v-for="tenant in session.state.tenants" :key="tenant.id" :value="tenant.id">
               {{ tenant.name }}
             </option>
           </select>
         </div>
         <div class="admin-topbar__account">
-          <div class="admin-avatar">{{ runtime.state.user?.displayName.slice(0, 1) }}</div>
+          <div class="admin-avatar">{{ session.state.user?.displayName.slice(0, 1) }}</div>
           <div class="admin-account-copy">
-            <strong>{{ runtime.state.user?.displayName }}</strong>
-            <span>{{ runtime.state.user?.email }}</span>
+            <strong>{{ session.state.user?.displayName }}</strong>
+            <span>{{ session.state.user?.email }}</span>
           </div>
           <button class="admin-signout" type="button" @click="signOut">退出登录</button>
         </div>

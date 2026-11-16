@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 
 import type { Permission } from '@unoadmin/core'
 
-import { useAdminRuntime } from '../../runtime'
+import { useAdminBaseServices } from '../../composables/useAdminBaseServices'
 
-const runtime = useAdminRuntime()
+const services = useAdminBaseServices()
 const permissions = ref<Permission[]>([])
 const loading = ref(false)
 
@@ -29,7 +29,7 @@ const rows = computed<FlatPermission[]>(() => {
 /** Load the full permission tree for the tree-shaped page. */
 async function loadPermissions() {
   loading.value = true
-  permissions.value = await runtime.services.base.permissions.list()
+  permissions.value = await services.permissions.list()
   loading.value = false
 }
 

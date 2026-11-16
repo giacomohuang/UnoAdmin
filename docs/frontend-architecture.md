@@ -14,11 +14,11 @@
 - `@unoadmin/admin-base` 是可复用的基础功能包，包含 Layout、用户、权限、角色、租户等基础页面、路由和页面级交互。
 - 每个业务域独立为一个 `@unoadmin/domain-*` package，通过统一模块协议接入管理端。
 - `@unoadmin/ui` 只承载跨域 UI 组件和设计令牌，例如文件上传、表格、分页、弹窗、空状态等，不包含用户、租户或业务 API。
-- `@unoadmin/core` 提供稳定的类型和服务端口；组合运行时、权限判断、租户上下文和模块注册能力位于 `@unoadmin/admin-base/runtime`。
+- `@unoadmin/core` 提供稳定的类型、上下文合同和服务端口；应用壳负责会话与上下文实现，各业务通过自身 composable 读取所需能力。
 - `routes-generator` 是统一的路由生成入口，扫描应用和各 package 的约定目录，生成 `virtual:router`。
 - package 之间通过公开 API 和依赖注入协作，不通过相对路径穿透对方 `src` 目录。
 
-核心判断是：基础功能包应当是“可安装的能力模块”，而不是另一个拥有自己的 `main.ts`、Router 单例和环境变量的应用。只有应用壳拥有运行时组装权；整个部署产物只有一个 SPA 入口。
+核心判断是：基础功能包应当是“可安装的能力模块”，而不是另一个拥有自己的 `main.ts`、Router 单例和环境变量的应用。只有应用壳拥有应用上下文组装权；整个部署产物只有一个 SPA 入口。
 
 ## 2. 推荐目录结构
 
@@ -38,7 +38,7 @@ UnoAdmin/
 │   │   │   │   └── modules.ts          # base + 业务域模块清单
 │   │   ├── core/                       # TypeScript 合同、基础类型和 HTTP 客户端
 │   │   ├── ui/                         # 跨业务公共组件和设计令牌
-│   │   ├── admin-base/                 # Layout、基础页面和组合运行时
+│   │   ├── admin-base/                 # Layout、基础页面和业务上下文 composable
 │   │   │   └── src/views/              # 基础包的自动路由页面
 │   │   ├── domain-xxx/                 # 业务域 package，按实际域命名
 │   │   │   └── src/views/              # 业务域的自动路由页面
@@ -80,18 +80,18 @@ packages:
 
 `createHttpClient` 只使用标准 Fetch API，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
 
-### 3.2 `@unoadmin/admin-base/runtime`
+### 3.2 应用会话与上下文
 
-基础管理包内的运行时子入口，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它不是独立 package，消费方通过 `@unoadmin/admin-base/runtime` 导入。它负责：
+共享合同和注入 token 位于 `core`，会话实现位于 `admin-app/src/app-session.ts`。应用壳负责：
 
 - 创建和持有当前登录会话。
 - 创建权限查询器，例如 `can('user:read')`、`require('tenant:manage')`。
 - 持有当前租户、可选租户和租户切换状态。
-- 创建模块注册表和应用上下文。
-- 创建路由守卫需要的运行时接口。
+- 创建模块注册表，并分别提供会话、品牌、模块和服务上下文。
+- 创建路由守卫需要的会话接口。
 - 把存储、认证、租户上下文等外部能力作为 adapter 注入。
 
-它不包含用户管理页面，也不包含任何具体业务域页面。
+`admin-base` 使用自己的 `useAdminBaseContext`、`useAdminBaseServices`，每个 `domain-*` 也只定义自己的服务 composable，例如 `useDemoServices`。业务之间不共享泛化的运行时对象。
 
 ### 3.3 `@unoadmin/ui`
 
@@ -109,13 +109,13 @@ packages:
 
 可发布的基础管理能力包，依赖 `core`、`ui`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
 
-- 认证会话、权限判断、租户上下文和模块运行时。
 - Layout、侧边导航、顶部栏、面包屑、错误页和权限兜底页面。
 - 用户列表、用户详情/编辑、用户状态和用户角色配置。
 - 权限列表、权限树和权限详情。
 - 角色列表、角色授权和角色成员管理。
 - 租户列表、租户详情、租户切换和租户作用域展示。
 - 基础模块的路由、导航项、权限定义和服务 port。
+- 仅暴露 admin-base 所需能力的 `useAdminBaseContext` 和 `useAdminBaseServices` composable。
 
 基础页面只依赖 `BaseServices`，不绑定后端 URL、DTO 命名和认证实现。应用通过 `createAdminBaseModule({ services, branding, features })` 配置它。
 
@@ -128,14 +128,14 @@ packages:
 - 该域的 DTO 到 UI model 的转换。
 - 该域的测试和 mock 数据。
 
-业务域可以依赖 `core`、`@unoadmin/admin-base/runtime`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
+业务域可以依赖 `core`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。每个业务域通过自己的服务 composable 读取应用注入的能力。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
 
 ### 3.6 `packages/frontend/admin-app`
 
 应用壳是唯一的组合根，负责：
 
 - 创建 Vue App、Pinia 和 Router。
-- 解析运行时配置。
+- 解析应用配置。
 - 实现 `AuthPort`、`UserService`、`TenantService` 等后端适配器。
 - 注册 `admin-base` 和业务域模块。
 - 配置全局错误处理、埋点、国际化和主题。
@@ -152,17 +152,17 @@ packages:
                          │  composition root  │
                          └─────────┬──────────┘
                                    │ 注册/组装
-                    ┌──────────────┴──────────────┐
-                    ▼                             ▼
-          admin-base package               domain-* modules
-       (runtime + Layout + pages)                 │
-                    │                             │
-                    ▼                             ▼
-                   ui                  admin-base/runtime
-                    │                             │
-                    └──────────────┬──────────────┘
-                                   ▼
-                                  core
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                    ▼
+     app session + adapters   admin-base pages     domain-* pages
+                                   │                    │
+                                   ▼                    ▼
+                        admin-base contexts      demo services
+                           composables               composable
+                                   │                    │
+                                   └─────────┬──────────┘
+                                             ▼
+                                       core contracts
 ```
 
 强制规则：
@@ -172,7 +172,7 @@ packages:
 3. 页面不得直接访问 `fetch`、`axios`、`localStorage` 或具体环境变量。
 4. package 之间只使用 package name 导入，例如 `@unoadmin/ui`，禁止 `../../ui/src/*`。
 5. `admin-base` 不得为了复用而反向依赖任何 `domain-*`。
-6. `domain-*` 只能通过 `@unoadmin/admin-base/runtime` 使用组合运行时，不能借机导入 admin-base 的私有页面。
+6. 业务 package 只能通过 `core` 的共享 token 和自身 composable 读取会话、服务等上下文，不得依赖 admin-app 或其他业务包的实现。
 
 可以在 CI 中使用 `dependency-cruiser`、`madge` 或 ESLint import boundary 规则检查这些约束。
 
@@ -201,9 +201,9 @@ export interface AdminModule {
 }
 ```
 
-实际实现时，可以把 Vue Router 相关类型放在 `@unoadmin/admin-base/runtime`，让 `core` 保持纯 TypeScript；上面的协议是行为要求，不要求所有接口必须位于同一个文件。
+实际实现时，会话与服务上下文接口和注入 token 放在 `core` 中保持无 Vue 依赖；Vue 实现放在具体应用中。上面的协议是行为要求，不要求所有接口必须位于同一个文件。
 
-模块协议不直接暴露 `routes: RouteRecordRaw[]`。路由文件由生成器统一扫描、校验和生成，模块工厂只提供运行时所需的导航、权限、服务和扩展点。这样既保留文件约定式开发体验，也避免每个 package 手动维护一套路由数组。
+模块协议不直接暴露 `routes: RouteRecordRaw[]`。路由文件由生成器统一扫描、校验和生成，模块工厂只提供应用所需的导航、权限、服务和扩展点。这样既保留文件约定式开发体验，也避免每个 package 手动维护一套路由数组。
 
 应用组装示意：
 
@@ -217,11 +217,11 @@ const modules = [
   createAssetsModule({ services: assetServices }),
 ]
 
-const runtime = createAdminRuntime({
-  auth: authAdapter,
-  storage: storageAdapter,
-  modules,
-})
+const session = createAdminSession({ auth: authAdapter })
+app.provide(ADMIN_SESSION_KEY, session)
+app.provide(ADMIN_BRANDING_KEY, appConfig.branding)
+app.provide(ADMIN_MODULES_KEY, modules)
+app.provide(ADMIN_SERVICES_KEY, services)
 ```
 
 模块工厂应返回稳定的公开对象。不要让应用通过深层路径导入 `admin-base/src/views/Users.vue`；如果某项目确实需要替换一个基础页面，应通过 `features`、slot、组件覆盖或明确的扩展点完成。
@@ -236,9 +236,9 @@ Router 实例只在应用壳创建一次。package 不创建 `createRouter()`，
 
 1. Vite 启动时由 `routes-generator` 扫描应用和已启用 package 的页面目录。
 2. 生成器通过 `virtual:router` 暴露带有懒加载组件和路由元信息的路由表。
-3. 应用创建 runtime 和所有模块。
+3. 应用创建会话、提供品牌/模块/服务上下文，并注册所有模块。
 4. 应用使用 `virtual:router` 创建唯一 Router，并安装基础守卫。
-5. runtime 根据当前登录态、租户上下文和权限集决定是否允许访问。
+5. 会话根据当前登录态、租户上下文和权限集决定是否允许访问。
 6. 导航菜单由已注册模块的 navigation 声明结合权限集过滤得到。
 
 未授权页面不应依赖后端返回任意组件路径来动态 import。后端只返回权限码或菜单标识，前端只从已注册的安全模块中匹配页面。
@@ -280,11 +280,11 @@ require('role:grant')
 
 ### 6.4 租户上下文
 
-租户上下文应是 runtime 的一等状态，而不是散落在各页面的 `ref`：
+租户上下文应是应用会话的一等状态，而不是散落在各页面的 `ref`：
 
 - 登录后初始化可用租户和默认租户。
 - 切换租户时清理或失效化与旧租户相关的查询缓存。
-- HTTP 客户端从 runtime 读取当前租户并注入请求上下文。
+- HTTP 客户端由应用 adapter 注入当前租户和请求上下文。
 - 所有租户级 API 明确要求 `tenantId` 或使用统一上下文，不允许页面自行拼接 Header。
 - 平台级接口和租户级接口在服务 port 层明确区分。
 - 租户切换失败时保留旧上下文，并给出可恢复的错误状态。
@@ -372,7 +372,7 @@ package 的 `package.json` 应提供类似的公开入口：
 
 版本策略建议如下：
 
-- `core`、`runtime`、`ui`、`admin-base` 使用独立 semver 版本，但在 monorepo 内通过 `workspace:` 管理。
+- `core`、`ui`、`admin-base` 使用独立 semver 版本，但在 monorepo 内通过 `workspace:` 管理。
 - 公开的 port、模块协议、权限码和路由 name 视为 API；破坏性变化必须升级 major。
 - 同一个仓库内的业务 package 可以独立发布和升级，应用通过锁文件固定版本。
 - 如果基础 package 只服务公司内部项目，也建议按照可发布包设计，先用私有 registry，避免未来提取时重做边界。
@@ -446,7 +446,7 @@ declare module 'virtual:router' {
 每个 package 都应在自己的边界内测试，应用再做一次组合验证：
 
 - `core`：类型合同、权限码、分页模型、租户上下文的纯函数测试。
-- `runtime`：登录态恢复、权限守卫、租户切换、缓存失效和模块注册测试。
+- `admin-app`：登录态恢复、权限守卫、租户切换、上下文注入和模块注册测试。
 - `ui`：组件 props/events/slots、键盘操作、错误和 loading 状态测试。
 - `admin-base`：用户、权限、角色、租户的页面行为测试，以及无权限和空数据状态。
 - `domain-*`：业务域页面、服务 adapter 和模块声明测试。
@@ -478,7 +478,7 @@ pnpm test:e2e
 
 1. 将应用壳放入 `packages/frontend/admin-app`，包名使用 `@unoadmin/admin-app`。
 2. 更新 workspace、TypeScript project references、lint、format 和测试脚本。
-3. 创建 `core`、`ui` 和 `admin-base` 的 runtime 子模块，先定义 port、HTTP 客户端、模块合同和组合运行时。
+3. 在 `core` 定义 port、HTTP 客户端、模块合同和上下文接口；在应用壳实现会话与上下文提供，在各业务中定义窄化 composable。
 4. 统一 Vue、Router、Pinia 和 UI 组件库版本，避免每个 package 各自选择。
 
 ### 阶段二：提取基础能力
@@ -497,7 +497,7 @@ pnpm test:e2e
 
 ### 阶段四：发布和复用验证
 
-1. 为 `ui`、`admin-base` 配置库构建、声明文件和 exports，并确保 `admin-base/runtime` 作为稳定子路径导出。
+1. 为 `ui`、`admin-base` 配置库构建、声明文件和 exports，并确保各业务 composable 只依赖 `core` 合同。
 2. 使用私有 registry 或 changesets 管理版本和变更日志。
 3. 新建第二个最小消费者应用，验证基础包可以复用并支持不同品牌、API 地址和权限模型。
 4. 通过组合测试、构建产物检查和浏览器流程验证后，再移除旧的应用内重复实现。

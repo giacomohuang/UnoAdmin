@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
-import type { DemoAppServices, DemoOverview } from '@unoadmin/domain-demo'
+import { useDemoServices } from '../composables/useDemoServices'
+import type { DemoOverview } from '@unoadmin/domain-demo'
 import { FileUpload } from '@unoadmin/ui'
 
-const runtime = useAdminRuntime<DemoAppServices>()
+const services = useDemoServices()
 const overview = ref<DemoOverview | null>(null)
 const loading = ref(false)
 const uploadMessage = ref('')
@@ -13,7 +13,7 @@ const uploadMessage = ref('')
 /** Load domain data through the app-provided demo service. */
 async function loadOverview() {
   loading.value = true
-  overview.value = await runtime.services.demo.getOverview()
+  overview.value = await services.getOverview()
   loading.value = false
 }
 
@@ -47,7 +47,7 @@ onMounted(loadOverview)
         <h2>共享文件上传</h2>
         <p>组件来自 <code>@unoadmin/ui</code>，存储实现由应用 adapter 注入。</p>
       </div>
-      <FileUpload :uploader="runtime.services.storage" accept=".pdf,.png,.jpg" @uploaded="handleUploaded" />
+      <FileUpload :uploader="services.storage" accept=".pdf,.png,.jpg" @uploaded="handleUploaded" />
       <span v-if="uploadMessage" class="base-status">{{ uploadMessage }}</span>
     </div>
   </section>

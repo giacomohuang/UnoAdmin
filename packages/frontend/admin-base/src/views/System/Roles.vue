@@ -3,16 +3,16 @@ import { onMounted, ref } from 'vue'
 
 import type { Role } from '@unoadmin/core'
 
-import { useAdminRuntime } from '../../runtime'
+import { useAdminBaseServices } from '../../composables/useAdminBaseServices'
 
-const runtime = useAdminRuntime()
+const services = useAdminBaseServices()
 const roles = ref<Role[]>([])
 const loading = ref(false)
 
 /** Read roles from the adapter to validate a package-owned list page. */
 async function loadRoles() {
   loading.value = true
-  roles.value = (await runtime.services.base.roles.list({ page: 1, pageSize: 50 })).items
+  roles.value = (await services.roles.list({ page: 1, pageSize: 50 })).items
   loading.value = false
 }
 

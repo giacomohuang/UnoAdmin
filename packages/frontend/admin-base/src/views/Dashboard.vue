@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { useAdminRuntime } from '../runtime'
+import { useAdminBaseContext } from '../composables/useAdminBaseContext'
 
-const runtime = useAdminRuntime()
-const moduleCount = computed(() => runtime.modules.length)
-const tenantCount = computed(() => runtime.state.tenants.length)
+const { modules, session } = useAdminBaseContext()
+const moduleCount = computed(() => modules.length)
+const tenantCount = computed(() => session.state.tenants.length)
 </script>
 
 <template>
@@ -21,8 +21,8 @@ const tenantCount = computed(() => runtime.state.tenants.length)
     <div class="dashboard-grid">
       <article class="dashboard-card dashboard-card--gold">
         <span>当前租户</span>
-        <strong>{{ runtime.state.currentTenant?.name || '未选择' }}</strong>
-        <small>{{ runtime.state.currentTenant?.code || '请先配置租户上下文' }}</small>
+        <strong>{{ session.state.currentTenant?.name || '未选择' }}</strong>
+        <small>{{ session.state.currentTenant?.code || '请先配置租户上下文' }}</small>
       </article>
       <article class="dashboard-card dashboard-card--teal">
         <span>可用租户</span>

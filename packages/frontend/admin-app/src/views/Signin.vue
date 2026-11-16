@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
 import { useRouter } from 'vue-router'
 
+import { useAppSession } from '../app-session'
+
 const router = useRouter()
-const runtime = useAdminRuntime()
+const session = useAppSession()
 
 /** Restore the local demo session before navigating past the auth guard. */
 async function enterWorkspace() {
-  await runtime.signIn()
+  await session.signIn()
   await router.push('/dashboard')
 }
 </script>

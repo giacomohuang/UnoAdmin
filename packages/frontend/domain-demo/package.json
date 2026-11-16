@@ -9,7 +9,6 @@
     }
   },
   "dependencies": {
-    "@unoadmin/admin-base": "workspace:*",
     "@unoadmin/core": "workspace:*",
     "@unoadmin/ui": "workspace:*"
   },

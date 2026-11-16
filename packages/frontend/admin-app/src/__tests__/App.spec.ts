@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
-import { authAdapter, appServices } from '../adapters/mock'
+import { authAdapter } from '../adapters/mock'
+import { createAdminSession } from '../app-session'
 import { installRouterGuards } from '../router/guards'
-import { createAdminRuntime } from '@unoadmin/admin-base/runtime'
 
 /** Keep the route contract aligned with the exclusions in vite.config.ts. */
 const routeExcludePatterns = ['**/components', 'Layout.vue'] as const
@@ -47,11 +47,11 @@ describe('generated application route contract', () => {
       ],
     })
     const state = { user: null as { id: string } | null }
-    const runtime = {
+    const session = {
       state,
       can: () => false,
     } as never
-    installRouterGuards(router, runtime)
+    installRouterGuards(router, session)
 
     await router.push('/private')
     expect(router.currentRoute.value.name).toBe('signin')
@@ -63,18 +63,15 @@ describe('generated application route contract', () => {
 
   // Re-entering the demo after logout must restore the session before routing.
   it('restores the demo session after sign-out', async () => {
-    const runtime = createAdminRuntime({
+    const session = createAdminSession({
       auth: authAdapter,
-      branding: { productName: 'UnoAdmin', productMark: 'U' },
-      modules: [],
-      services: appServices,
     })
 
-    await runtime.initialize()
-    await runtime.signOut()
-    expect(runtime.state.user).toBeNull()
+    await session.initialize()
+    await session.signOut()
+    expect(session.state.user).toBeNull()
 
-    await runtime.signIn()
-    expect(runtime.state.user?.username).toBe('lin.wei')
+    await session.signIn()
+    expect(session.state.user?.username).toBe('lin.wei')
   })
 })

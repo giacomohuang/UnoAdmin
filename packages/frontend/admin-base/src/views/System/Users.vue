@@ -3,9 +3,9 @@ import { onMounted, ref } from 'vue'
 
 import type { User } from '@unoadmin/core'
 
-import { useAdminRuntime } from '../../runtime'
+import { useAdminBaseServices } from '../../composables/useAdminBaseServices'
 
-const runtime = useAdminRuntime()
+const services = useAdminBaseServices()
 const users = ref<User[]>([])
 const search = ref('')
 const loading = ref(false)
@@ -16,7 +16,7 @@ async function loadUsers() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const result = await runtime.services.base.users.list({ page: 1, pageSize: 20, search: search.value })
+    const result = await services.users.list({ page: 1, pageSize: 20, search: search.value })
     users.value = result.items
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '用户加载失败'
@@ -28,7 +28,7 @@ async function loadUsers() {
 /** Toggle status through the injected service so the page has a real write path. */
 async function toggleStatus(user: User) {
   const nextStatus = user.status === 'active' ? 'disabled' : 'active'
-  await runtime.services.base.users.updateStatus(user.id, nextStatus)
+  await services.users.updateStatus(user.id, nextStatus)
   user.status = nextStatus
 }
 
