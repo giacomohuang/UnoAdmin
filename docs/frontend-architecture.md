@@ -14,7 +14,7 @@
 - `@unoadmin/admin-base` 是可复用的基础功能包，包含 Layout、用户、权限、角色、租户等基础页面、路由和页面级交互。
 - 每个业务域独立为一个 `@unoadmin/domain-*` package，通过统一模块协议接入管理端。
 - `@unoadmin/ui` 只承载跨域 UI 组件和设计令牌，例如文件上传、表格、分页、弹窗、空状态等，不包含用户、租户或业务 API。
-- `@unoadmin/core` 和 `@unoadmin/runtime` 提供稳定的类型、服务端口、权限运行时、租户上下文和模块注册能力。
+- `@unoadmin/core` 提供稳定的类型和服务端口；组合运行时、权限判断、租户上下文和模块注册能力位于 `@unoadmin/admin-base/runtime`。
 - `routes-generator` 是统一的路由生成入口，扫描应用和各 package 的约定目录，生成 `virtual:router`。
 - package 之间通过公开 API 和依赖注入协作，不通过相对路径穿透对方 `src` 目录。
 
@@ -37,9 +37,8 @@ UnoAdmin/
 │   │   │   │   ├── config/             # 环境变量解析和应用配置
 │   │   │   │   └── modules.ts          # base + 业务域模块清单
 │   │   ├── core/                       # TypeScript 合同、基础类型和 HTTP 客户端
-│   │   ├── runtime/                    # Vue/Pinia/Router 运行时
 │   │   ├── ui/                         # 跨业务公共组件和设计令牌
-│   │   ├── admin-base/                 # Layout + 用户/权限/角色/租户
+│   │   ├── admin-base/                 # Layout、基础页面和组合运行时
 │   │   │   └── src/views/              # 基础包的自动路由页面
 │   │   ├── domain-xxx/                 # 业务域 package，按实际域命名
 │   │   │   └── src/views/              # 业务域的自动路由页面
@@ -81,9 +80,9 @@ packages:
 
 `createHttpClient` 只使用标准 Fetch API，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
 
-### 3.2 `@unoadmin/runtime`
+### 3.2 `@unoadmin/admin-base/runtime`
 
-Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它负责：
+基础管理包内的运行时子入口，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它不是独立 package，消费方通过 `@unoadmin/admin-base/runtime` 导入。它负责：
 
 - 创建和持有当前登录会话。
 - 创建权限查询器，例如 `can('user:read')`、`require('tenant:manage')`。
@@ -108,8 +107,9 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 
 ### 3.4 `@unoadmin/admin-base`
 
-可发布的基础管理能力包，依赖 `core`、`runtime`、`ui`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
+可发布的基础管理能力包，依赖 `core`、`ui`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
 
+- 认证会话、权限判断、租户上下文和模块运行时。
 - Layout、侧边导航、顶部栏、面包屑、错误页和权限兜底页面。
 - 用户列表、用户详情/编辑、用户状态和用户角色配置。
 - 权限列表、权限树和权限详情。
@@ -128,7 +128,7 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 - 该域的 DTO 到 UI model 的转换。
 - 该域的测试和 mock 数据。
 
-业务域可以依赖 `core`、`runtime`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
+业务域可以依赖 `core`、`@unoadmin/admin-base/runtime`、`ui`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。跨域共用的内容应下沉到 `core` 或 `ui`，而不是复制代码或建立业务域之间的环依赖。
 
 ### 3.6 `packages/frontend/admin-app`
 
@@ -152,19 +152,17 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
                          │  composition root  │
                          └─────────┬──────────┘
                                    │ 注册/组装
-              ┌────────────────────┼────────────────────┐
-              │                    │                    │
-              ▼                    ▼                    ▼
-     admin-base module     domain-* modules       app adapters
-              │                    │                    │
-              ├──────────┬─────────┤                    │
-              ▼          ▼                              ▼
-          runtime       ui                         后端/API/存储
-              │          │
-              └──────────┐
-                         │
-                         ▼
-                        core
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+          admin-base package               domain-* modules
+       (runtime + Layout + pages)                 │
+                    │                             │
+                    ▼                             ▼
+                   ui                  admin-base/runtime
+                    │                             │
+                    └──────────────┬──────────────┘
+                                   ▼
+                                  core
 ```
 
 强制规则：
@@ -174,6 +172,7 @@ Vue 运行时包，依赖 `core`，可以依赖 Vue、Pinia、Vue Router。它�
 3. 页面不得直接访问 `fetch`、`axios`、`localStorage` 或具体环境变量。
 4. package 之间只使用 package name 导入，例如 `@unoadmin/ui`，禁止 `../../ui/src/*`。
 5. `admin-base` 不得为了复用而反向依赖任何 `domain-*`。
+6. `domain-*` 只能通过 `@unoadmin/admin-base/runtime` 使用组合运行时，不能借机导入 admin-base 的私有页面。
 
 可以在 CI 中使用 `dependency-cruiser`、`madge` 或 ESLint import boundary 规则检查这些约束。
 
@@ -202,7 +201,7 @@ export interface AdminModule {
 }
 ```
 
-实际实现时，可以把 Vue Router 相关类型放在 `runtime`，让 `core` 保持纯 TypeScript；上面的协议是行为要求，不要求所有接口必须位于同一个文件。
+实际实现时，可以把 Vue Router 相关类型放在 `@unoadmin/admin-base/runtime`，让 `core` 保持纯 TypeScript；上面的协议是行为要求，不要求所有接口必须位于同一个文件。
 
 模块协议不直接暴露 `routes: RouteRecordRaw[]`。路由文件由生成器统一扫描、校验和生成，模块工厂只提供运行时所需的导航、权限、服务和扩展点。这样既保留文件约定式开发体验，也避免每个 package 手动维护一套路由数组。
 
@@ -479,7 +478,7 @@ pnpm test:e2e
 
 1. 将应用壳放入 `packages/frontend/admin-app`，包名使用 `@unoadmin/admin-app`。
 2. 更新 workspace、TypeScript project references、lint、format 和测试脚本。
-3. 创建 `core`、`runtime`、`ui` 三个最小 package，先定义 port、HTTP 客户端和模块合同。
+3. 创建 `core`、`ui` 和 `admin-base` 的 runtime 子模块，先定义 port、HTTP 客户端、模块合同和组合运行时。
 4. 统一 Vue、Router、Pinia 和 UI 组件库版本，避免每个 package 各自选择。
 
 ### 阶段二：提取基础能力
@@ -498,7 +497,7 @@ pnpm test:e2e
 
 ### 阶段四：发布和复用验证
 
-1. 为 `ui`、`runtime`、`admin-base` 配置库构建、声明文件和 exports。
+1. 为 `ui`、`admin-base` 配置库构建、声明文件和 exports，并确保 `admin-base/runtime` 作为稳定子路径导出。
 2. 使用私有 registry 或 changesets 管理版本和变更日志。
 3. 新建第二个最小消费者应用，验证基础包可以复用并支持不同品牌、API 地址和权限模型。
 4. 通过组合测试、构建产物检查和浏览器流程验证后，再移除旧的应用内重复实现。

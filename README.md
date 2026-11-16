@@ -14,10 +14,9 @@ pnpm dev
 ## Workspace
 
 - `packages/frontend/admin-app`：唯一 SPA 应用壳，负责 Router、守卫、环境配置和服务 adapter。
-- `packages/frontend/admin-base`：可复用的 Layout、用户、权限、角色和租户基础页面。
+- `packages/frontend/admin-base`：可复用的 Layout、基础页面，以及认证、权限、租户和模块运行时。
 - `packages/frontend/domain-demo`：用于验证 package 自动路由的示例业务域。
 - `packages/frontend/core`：纯 TypeScript 类型、服务 port 和可注入 HTTP 客户端。
-- `packages/frontend/runtime`：认证、权限、租户和模块运行时。
 - `packages/frontend/ui`：跨业务公共组件，目前包含文件上传。
 - `packages/frontend/vite-plugins/routes-generator`：扫描多个 package 的 `src/views` 并生成 `virtual:router`。
 - 每个 package 的 `tsconfig.json`：在项目内部维护自己的 TypeScript 编译配置，避免共享配置包影响独立复用。
