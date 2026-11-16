@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue'
 
 import type { Role } from '@unoadmin/core'
-import { useAdminRuntime } from '@unoadmin/runtime'
+
+import { useAdminRuntime } from '../../runtime'
 
 const runtime = useAdminRuntime()
 const roles = ref<Role[]>([])

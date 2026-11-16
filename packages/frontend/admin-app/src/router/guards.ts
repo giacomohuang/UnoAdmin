@@ -1,4 +1,4 @@
-import type { AdminRuntime } from '@unoadmin/runtime'
+import type { AdminRuntime } from '@unoadmin/admin-base/runtime'
 import type { Router } from 'vue-router'
 
 /** Install the application-level auth and permission boundary around generated routes. */

@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
 import { authAdapter, appServices } from '../adapters/mock'
 import { installRouterGuards } from '../router/guards'
-import { createAdminRuntime } from '@unoadmin/runtime'
+import { createAdminRuntime } from '@unoadmin/admin-base/runtime'
 
 /** Keep the route contract aligned with the exclusions in vite.config.ts. */
 const routeExcludePatterns = ['**/components', 'Layout.vue'] as const

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
 import type { DemoAppServices, DemoRecord } from '@unoadmin/domain-demo'
-import { useAdminRuntime } from '@unoadmin/runtime'
 
 const runtime = useAdminRuntime<DemoAppServices>()
 const records = ref<DemoRecord[]>([])

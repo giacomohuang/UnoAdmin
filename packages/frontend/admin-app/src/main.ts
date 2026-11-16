@@ -9,7 +9,7 @@ import App from './App.vue'
 import router from './router'
 import { authAdapter, appServices } from './adapters/mock'
 import { modules } from './modules'
-import { createAdminRuntime, provideAdminRuntime } from '@unoadmin/runtime'
+import { createAdminRuntime, provideAdminRuntime } from '@unoadmin/admin-base/runtime'
 import { installRouterGuards } from './router/guards'
 
 const runtime = createAdminRuntime({

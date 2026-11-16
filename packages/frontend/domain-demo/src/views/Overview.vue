@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
 import type { DemoAppServices, DemoOverview } from '@unoadmin/domain-demo'
-import { useAdminRuntime } from '@unoadmin/runtime'
 import { FileUpload } from '@unoadmin/ui'
 
 const runtime = useAdminRuntime<DemoAppServices>()

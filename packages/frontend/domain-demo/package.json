@@ -9,8 +9,8 @@
     }
   },
   "dependencies": {
+    "@unoadmin/admin-base": "workspace:*",
     "@unoadmin/core": "workspace:*",
-    "@unoadmin/runtime": "workspace:*",
     "@unoadmin/ui": "workspace:*"
   },
   "peerDependencies": {

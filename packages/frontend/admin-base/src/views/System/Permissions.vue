@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 
 import type { Permission } from '@unoadmin/core'
-import { useAdminRuntime } from '@unoadmin/runtime'
+
+import { useAdminRuntime } from '../../runtime'
 
 const runtime = useAdminRuntime()
 const permissions = ref<Permission[]>([])

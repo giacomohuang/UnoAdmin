@@ -1,4 +1,4 @@
-import { inject, reactive, type App, type DeepReadonly, type InjectionKey, readonly } from 'vue'
+import { inject, reactive, readonly, type App, type DeepReadonly, type InjectionKey } from 'vue'
 
 import type {
   AdminBranding,
@@ -12,7 +12,7 @@ import type {
   User,
 } from '@unoadmin/core'
 
-/** Public reactive state shared by Layout and package pages. */
+/** Public reactive state shared by the Layout and package pages. */
 export interface AdminRuntimeState {
   ready: boolean
   user: User | null
@@ -48,7 +48,9 @@ export interface CreateAdminRuntimeOptions<Services extends AppServices = AppSer
 export const ADMIN_RUNTIME_KEY: InjectionKey<AdminRuntime> = Symbol('unoadmin.runtime')
 
 /** Create the application-scoped runtime consumed by all packages. */
-export function createAdminRuntime<Services extends AppServices>(options: CreateAdminRuntimeOptions<Services>): AdminRuntime<Services> {
+export function createAdminRuntime<Services extends AppServices>(
+  options: CreateAdminRuntimeOptions<Services>,
+): AdminRuntime<Services> {
   const state = reactive<AdminRuntimeState>({
     ready: false,
     user: null,
@@ -100,7 +102,10 @@ export function createAdminRuntime<Services extends AppServices>(options: Create
 }
 
 /** Install a runtime on the Vue application root. */
-export function provideAdminRuntime<Services extends AppServices>(app: App, runtime: AdminRuntime<Services>): App {
+export function provideAdminRuntime<Services extends AppServices>(
+  app: App,
+  runtime: AdminRuntime<Services>,
+): App {
   return app.provide(ADMIN_RUNTIME_KEY, runtime)
 }
 
@@ -111,6 +116,7 @@ export function useAdminRuntime<Services extends AppServices = AppServices>(): A
   return runtime as AdminRuntime<Services>
 }
 
+/** Filter navigation recursively while preserving declared ordering. */
 function filterNavigation(items: NavigationItem[], can: (permission?: string) => boolean): NavigationItem[] {
   return items.flatMap((item) => {
     if (!can(item.permission)) return []

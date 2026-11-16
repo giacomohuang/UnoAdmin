@@ -1,5 +1,7 @@
 import type { AdminModule, PermissionDefinition } from '@unoadmin/core'
 
+export * from './runtime'
+
 const basePermissions: PermissionDefinition[] = [
   { code: 'user:read', label: '查看用户' },
   { code: 'user:write', label: '管理用户' },

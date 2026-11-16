@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAdminRuntime } from '@unoadmin/runtime'
+import { useAdminRuntime } from '@unoadmin/admin-base/runtime'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()

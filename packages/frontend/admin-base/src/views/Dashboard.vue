@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { useAdminRuntime } from '@unoadmin/runtime'
+import { useAdminRuntime } from '../runtime'
 
 const runtime = useAdminRuntime()
 const moduleCount = computed(() => runtime.modules.length)

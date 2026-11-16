@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { NavigationItem, TenantId } from '@unoadmin/core'
-import { useAdminRuntime } from '@unoadmin/runtime'
 import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+
+import { useAdminRuntime } from '../runtime'
 
 const runtime = useAdminRuntime()
 const route = useRoute()
