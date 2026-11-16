@@ -29,8 +29,8 @@ export function createAdminSession(options: CreateAdminSessionOptions): AdminSes
 
   return {
     state: readonly(state),
-    async signIn() {
-      setSession(await options.auth.signIn())
+    async signIn(credentials) {
+      setSession(await options.auth.signIn(credentials))
     },
     async initialize() {
       setSession(await options.auth.restore())
@@ -43,6 +43,8 @@ export function createAdminSession(options: CreateAdminSessionOptions): AdminSes
     async switchTenant(id) {
       const tenant = state.tenants.find((item) => item.id === id)
       if (!tenant) throw new Error(`Tenant ${id} is not available to the current user`)
+      // HTTP 适配器会把新令牌写入存储；本地适配器没有该钩子时只更新前端状态。
+      await options.auth.switchTenant?.(id)
       state.currentTenant = tenant
     },
     async signOut() {

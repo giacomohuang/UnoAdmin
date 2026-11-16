@@ -13,7 +13,7 @@ import (
 // seedPassword 是种子账号的默认密码，可通过命令行参数覆盖。
 const seedPassword = "admin123"
 
-// Seed 写入与前端 mock adapter 一致的基础数据；已存在的记录不会被覆盖。
+// Seed 写入基础管理数据；已存在的记录不会被覆盖。
 func Seed(ctx context.Context, store *Store, hasher domain.PasswordHasher, password string) error {
 	if password == "" {
 		password = seedPassword
@@ -35,10 +35,7 @@ func Seed(ctx context.Context, store *Store, hasher domain.PasswordHasher, passw
 	if err := seedMany(ctx, store.DB.Collection("users"), seedUsers(hash)); err != nil {
 		return err
 	}
-	if err := seedMany(ctx, store.DB.Collection("demo_overview"), seedDemoOverview()); err != nil {
-		return err
-	}
-	return seedMany(ctx, store.DB.Collection("demo_records"), seedDemoRecords())
+	return nil
 }
 
 // seedMany 按 _id 幂等 upsert 一组文档。
@@ -77,8 +74,8 @@ func seedTenants() []bson.D {
 func seedRoles() []bson.D {
 	return []bson.D{
 		{{Key: "_id", Value: "role-admin"}, {Key: "name", Value: "平台管理员"}, {Key: "description", Value: "管理全部基础能力和业务模块"}, {Key: "permissionCodes", Value: []string{"*"}}},
-		{{Key: "_id", Value: "role-operator"}, {Key: "name", Value: "运营经理"}, {Key: "description", Value: "查看业务数据并执行日常运营操作"}, {Key: "permissionCodes", Value: []string{"user:read", "role:read", "tenant:read", "demo:read"}}},
-		{{Key: "_id", Value: "role-viewer"}, {Key: "name", Value: "只读访客"}, {Key: "description", Value: "仅查看被授权的页面"}, {Key: "permissionCodes", Value: []string{"demo:read"}}},
+		{{Key: "_id", Value: "role-operator"}, {Key: "name", Value: "运营经理"}, {Key: "description", Value: "查看基础管理数据并执行日常运营操作"}, {Key: "permissionCodes", Value: []string{"user:read", "role:read", "tenant:read"}}},
+		{{Key: "_id", Value: "role-viewer"}, {Key: "name", Value: "只读访客"}, {Key: "description", Value: "仅查看被授权的页面"}, {Key: "permissionCodes", Value: []string{}}},
 	}
 }
 
@@ -91,8 +88,6 @@ func seedPermissions() []bson.D {
 		{{Key: "_id", Value: "permission-role"}, {Key: "name", Value: "角色管理"}, {Key: "code", Value: "role:read"}, {Key: "type", Value: "page"}, {Key: "parentId", Value: "permission-system"}, {Key: "sortOrder", Value: 1}},
 		{{Key: "_id", Value: "permission-role-grant"}, {Key: "name", Value: "角色授权"}, {Key: "code", Value: "role:grant"}, {Key: "type", Value: "action"}, {Key: "parentId", Value: "permission-role"}, {Key: "sortOrder", Value: 0}},
 		{{Key: "_id", Value: "permission-tenant"}, {Key: "name", Value: "租户管理"}, {Key: "code", Value: "tenant:read"}, {Key: "type", Value: "page"}, {Key: "parentId", Value: "permission-system"}, {Key: "sortOrder", Value: 2}},
-		{{Key: "_id", Value: "permission-demo"}, {Key: "name", Value: "示例业务"}, {Key: "code", Value: "demo"}, {Key: "type", Value: "menu"}, {Key: "parentId", Value: ""}, {Key: "sortOrder", Value: 1}},
-		{{Key: "_id", Value: "permission-demo-read"}, {Key: "name", Value: "示例看板"}, {Key: "code", Value: "demo:read"}, {Key: "type", Value: "page"}, {Key: "parentId", Value: "permission-demo"}, {Key: "sortOrder", Value: 0}},
 	}
 }
 

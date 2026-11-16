@@ -26,7 +26,7 @@ func fixtures() (*auth.Service, *testutil.TokenProvider, *testutil.RefreshStore)
 	)
 	roles := testutil.NewRoleRepo(
 		domain.Role{ID: "role-admin", Name: "平台管理员", PermissionCodes: []string{"*"}},
-		domain.Role{ID: "role-viewer", Name: "只读访客", PermissionCodes: []string{"demo:read"}},
+		domain.Role{ID: "role-viewer", Name: "只读访客", PermissionCodes: []string{"user:read"}},
 	)
 	tenants := testutil.NewTenantRepo(
 		domain.Tenant{ID: "tenant-main", Name: "总部空间", Code: "HQ", Status: domain.TenantActive},

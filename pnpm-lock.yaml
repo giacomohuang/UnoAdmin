@@ -228,12 +228,12 @@ importers:
       '@unoadmin/core':
         specifier: workspace:*
         version: link:../core
-      '@unoadmin/domain-demo':
-        specifier: workspace:*
-        version: link:../domain-demo
       '@unoadmin/ui':
         specifier: workspace:*
         version: link:../ui
+      ky:
+        specifier: ^2.2.0
+        version: 2.2.0
       pinia:
         specifier: ^4.0.2
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3))
@@ -346,29 +346,14 @@ importers:
         version: 3.3.11(typescript@6.0.3)
 
   packages/frontend/core:
-    devDependencies:
-      typescript:
-        specifier: ~6.0.0
-        version: 6.0.3
-
-  packages/frontend/domain-demo:
     dependencies:
-      '@unoadmin/core':
-        specifier: workspace:*
-        version: link:../core
-      '@unoadmin/ui':
-        specifier: workspace:*
-        version: link:../ui
+      ky:
+        specifier: ^2.2.0
+        version: 2.2.0
     devDependencies:
       typescript:
         specifier: ~6.0.0
         version: 6.0.3
-      vue:
-        specifier: ^3.5.40
-        version: 3.5.42(typescript@6.0.3)
-      vue-tsc:
-        specifier: ^3.3.7
-        version: 3.3.11(typescript@6.0.3)
 
   packages/frontend/ui:
     dependencies:
@@ -1983,6 +1968,10 @@ packages:
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
+
+  ky@2.2.0:
+    resolution: {integrity: sha512-4+B63kyZt+Y8snQiUGydK1vgY9xYQJZEh9K/nIAIEts+gYJzy1EiAw3BbK8xpWRuWUpN70SNCMjqRGTm75xxIA==}
+    engines: {node: '>=22'}
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -4080,6 +4069,8 @@ snapshots:
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
+
+  ky@2.2.0: {}
 
   levn@0.4.1:
     dependencies:

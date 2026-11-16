@@ -101,22 +101,6 @@ type AuthSession struct {
 	CurrentTenantID string   `json:"currentTenantId"`
 }
 
-// DemoOverview 对应 domain-demo 包的业务概览数据。
-type DemoOverview struct {
-	ActiveProjects int     `json:"activeProjects" bson:"activeProjects"`
-	PendingTasks   int     `json:"pendingTasks" bson:"pendingTasks"`
-	MonthlyGrowth  float64 `json:"monthlyGrowth" bson:"monthlyGrowth"`
-}
-
-// DemoRecord 对应 domain-demo 包的项目记录。
-type DemoRecord struct {
-	ID        string `json:"id" bson:"_id"`
-	Name      string `json:"name" bson:"name"`
-	Owner     string `json:"owner" bson:"owner"`
-	Status    string `json:"status" bson:"status"`
-	UpdatedAt string `json:"updatedAt" bson:"updatedAt"`
-}
-
 // RefreshSession 是刷新令牌在 Redis 中关联的会话信息。
 type RefreshSession struct {
 	UserID   string `json:"userId"`

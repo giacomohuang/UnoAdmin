@@ -13,7 +13,6 @@ export const routeExcludePatterns = ['**/components', 'Layout.vue'] as const
 
 const workspaceRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const adminBaseViews = fileURLToPath(new URL('../admin-base/src/views', import.meta.url))
-const demoViews = fileURLToPath(new URL('../domain-demo/src/views', import.meta.url))
 const appViews = fileURLToPath(new URL('./src/views', import.meta.url))
 
 /** Configure one SPA entry and merge route pages from every enabled package. */
@@ -27,7 +26,6 @@ export default defineConfig({
       exclude: routeExcludePatterns,
       routeRoots: [
         { directory: adminBaseViews, basePath: '' },
-        { namePrefix: 'demo', directory: demoViews, basePath: '/demo' },
         { namePrefix: 'app', directory: appViews, basePath: '' }
       ]
     })

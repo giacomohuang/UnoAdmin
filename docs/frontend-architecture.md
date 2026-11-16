@@ -78,7 +78,7 @@ packages:
 - 统一错误类型、分页查询参数、分页结果、排序和过滤模型。
 - 当前租户、平台作用域、租户作用域的上下文合同。
 
-`createHttpClient` 只使用标准 Fetch API，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
+`createHttpClient` 基于 `ky` 提供 Fetch 能力，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
 
 ### 3.2 应用会话与上下文
 
@@ -91,7 +91,7 @@ packages:
 - 创建路由守卫需要的会话接口。
 - 把存储、认证、租户上下文等外部能力作为 adapter 注入。
 
-`admin-base` 使用自己的 `useAdminBaseContext`、`useAdminBaseServices`，每个 `domain-*` 也只定义自己的服务 composable，例如 `useDemoServices`。业务之间不共享泛化的运行时对象。
+`admin-base` 使用自己的 `useAdminBaseContext`、`useAdminBaseServices`，每个 `domain-*` 也只定义自己的服务 composable，例如 `useFeatureServices`。业务之间不共享泛化的全局对象。
 
 ### 3.3 `@unoadmin/ui`
 
@@ -157,7 +157,7 @@ packages:
      app session + adapters   admin-base pages     domain-* pages
                                    │                    │
                                    ▼                    ▼
-                        admin-base contexts      demo services
+                        admin-base contexts     domain services
                            composables               composable
                                    │                    │
                                    └─────────┬──────────┘
@@ -486,7 +486,7 @@ pnpm test:e2e
 1. 实现 `@unoadmin/admin-base` 的 Layout 和基础模块。
 2. 将用户、权限、角色、租户页面迁移到基础包。
 3. 删除基础页面对应用环境变量、Router 单例和具体后端客户端的直接依赖。
-4. 为基础包增加一个最小 demo app，验证它能脱离主应用运行。
+4. 为基础包增加一个最小消费者应用，验证它能脱离主应用运行。
 
 ### 阶段三：接入业务域
 

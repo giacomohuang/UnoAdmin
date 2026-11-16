@@ -40,9 +40,8 @@ const tenantCount = computed(() => session.state.tenants.length)
       <div>
         <span class="dashboard-welcome__kicker">模块化骨架</span>
         <h2>基础管理能力已经作为独立 package 接入。</h2>
-        <p>左侧系统管理包含用户、角色、权限和租户页面；示例业务模块用于验证跨 package 的自动路由。</p>
+        <p>左侧系统管理包含用户、角色、权限和租户页面，路由由统一的页面目录自动生成。</p>
       </div>
-      <RouterLink class="base-button" to="/demo/overview">查看示例业务</RouterLink>
     </div>
   </section>
 </template>

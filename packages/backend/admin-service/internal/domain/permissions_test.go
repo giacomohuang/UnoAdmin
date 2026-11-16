@@ -22,7 +22,7 @@ func TestEffectivePermissionsMergesAndDeduplicates(t *testing.T) {
 
 func TestEffectivePermissionsCollapsesWildcard(t *testing.T) {
 	roles := []domain.Role{
-		{PermissionCodes: []string{"demo:read"}},
+		{PermissionCodes: []string{"user:read"}},
 		{PermissionCodes: []string{"*"}},
 	}
 
@@ -43,7 +43,7 @@ func TestCanMatchesFrontendSessionBehavior(t *testing.T) {
 		{name: "wildcard allows everything", permissions: []string{"*"}, code: "user:write", want: true},
 		{name: "exact match", permissions: []string{"user:read"}, code: "user:read", want: true},
 		{name: "missing code is denied", permissions: []string{"user:read"}, code: "user:write", want: false},
-		{name: "no permissions denies", permissions: nil, code: "demo:read", want: false},
+		{name: "no permissions denies", permissions: nil, code: "user:read", want: false},
 	}
 
 	for _, tt := range tests {

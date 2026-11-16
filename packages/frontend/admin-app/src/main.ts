@@ -13,11 +13,25 @@ import './styles.css'
 
 import App from './App.vue'
 import router from './router'
-import { authAdapter, appServices } from './adapters/mock'
+import { createApiClient } from './adapters/api-client'
+import { createHttpAuth } from './adapters/http-auth'
+import { createHttpServices } from './adapters/http-services'
+import { tokenStore } from './adapters/token-store'
 import { modules } from './modules'
 import { createAdminSession } from './app-session'
 import { installRouterGuards } from './router/guards'
 
+/** 所有 REST 请求共用同一个客户端，令牌与租户随请求自动注入。 */
+const apiClient = createApiClient({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1/',
+  getAccessToken: () => tokenStore.getAccess(),
+  getRefreshToken: () => tokenStore.getRefresh(),
+  getTenantId: () => tokenStore.getTenant(),
+  onTokens: (access, refresh) => tokenStore.setTokens(access, refresh),
+  onAuthFailed: () => tokenStore.clear(),
+})
+const authAdapter = createHttpAuth(apiClient, tokenStore)
+const appServices = createHttpServices(apiClient)
 const session = createAdminSession({ auth: authAdapter })
 const branding = {
   productName: 'UnoAdmin',

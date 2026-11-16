@@ -32,6 +32,5 @@ func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) htt
 	mux.Handle("GET /api/v1/roles", guard(auth, "role:read", http.HandlerFunc(s.handleListRoles)))
 	mux.Handle("GET /api/v1/permissions", guard(auth, "", http.HandlerFunc(s.handleListPermissions)))
 	mux.Handle("GET /api/v1/tenants", guard(auth, "tenant:read", http.HandlerFunc(s.handleListTenants)))
-
 	return cors(origins, mux)
 }

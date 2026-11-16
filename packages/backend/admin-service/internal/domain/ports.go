@@ -53,12 +53,6 @@ type TokenBlacklist interface {
 	Add(ctx context.Context, tokenID string, expiresAt time.Time) error
 }
 
-// DemoRepository 提供示例业务包的持久化数据。
-type DemoRepository interface {
-	GetOverview(ctx context.Context) (*DemoOverview, error)
-	ListRecords(ctx context.Context, query ListQuery) (PageResult[DemoRecord], error)
-}
-
 // RefreshTokenStore 持久化刷新令牌，生产环境由 Redis 实现。
 type RefreshTokenStore interface {
 	Save(ctx context.Context, token string, session RefreshSession, ttl time.Duration) error

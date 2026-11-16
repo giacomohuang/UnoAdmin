@@ -1,16 +1,40 @@
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import type { AuthPort, AuthSession } from '@unoadmin/core'
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
-import { authAdapter } from '../adapters/mock'
 import { createAdminSession } from '../app-session'
 import { installRouterGuards } from '../router/guards'
+
+/** Local fake replaces the deleted mock adapter so session tests stay offline. */
+const sessionFixture: AuthSession = {
+  user: {
+    id: 'user-001' as AuthSession['user']['id'],
+    username: 'lin.wei',
+    displayName: '林薇',
+    email: 'lin.wei@example.com',
+    status: 'active',
+    roleNames: ['平台管理员'],
+  },
+  permissions: ['*'],
+  tenants: [],
+  currentTenantId: null,
+}
+const testAuth: AuthPort = {
+  async signIn() {
+    return sessionFixture
+  },
+  async restore() {
+    return sessionFixture
+  },
+  async signOut() {},
+}
 
 /** Keep the route contract aligned with the exclusions in vite.config.ts. */
 const routeExcludePatterns = ['**/components', 'Layout.vue'] as const
 
 describe('generated application route contract', () => {
-  it('contains base and demo package pages', () => {
+  it('contains base package pages', () => {
     const routeRecords = getGeneratedRouteRecords({
       layoutDir: '/layout.vue',
       // Reuse the same Gitignore-style filters as the Vite plugin configuration.
@@ -18,7 +42,6 @@ describe('generated application route contract', () => {
       routeRoots: [
         // The application package resolves its generated route roots from sibling packages.
         { directory: '../admin-base/src/views', basePath: '' },
-        { namePrefix: 'demo', directory: '../domain-demo/src/views', basePath: '/demo' },
       ],
     })
 
@@ -32,8 +55,6 @@ describe('generated application route contract', () => {
     collectPaths(routeRecords)
 
     expect(routePaths).toContain('/system/users')
-    expect(routePaths).toContain('/demo/overview')
-    expect(routePaths).toContain('/demo/records')
     expect(routePaths).not.toContain('/layout')
   })
 
@@ -61,10 +82,10 @@ describe('generated application route contract', () => {
     expect(router.currentRoute.value.name).toBe('forbidden')
   })
 
-  // Re-entering the demo after logout must restore the session before routing.
-  it('restores the demo session after sign-out', async () => {
+  // Re-entering the workspace after logout must restore the session before routing.
+  it('restores the session after sign-out', async () => {
     const session = createAdminSession({
-      auth: authAdapter,
+      auth: testAuth,
     })
 
     await session.initialize()

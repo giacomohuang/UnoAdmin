@@ -133,7 +133,7 @@ func TestProtectedRouteRequiresBearer(t *testing.T) {
 
 func TestProtectedRouteRejectsMissingPermission(t *testing.T) {
 	auth := &fakeAuth{principal: &domain.Principal{
-		UserID: "user-001", TenantID: "tenant-main", Permissions: []string{"demo:read"},
+		UserID: "user-001", TenantID: "tenant-main", Permissions: []string{"role:read"},
 	}}
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
 	req.Header.Set("Authorization", "Bearer valid-token")

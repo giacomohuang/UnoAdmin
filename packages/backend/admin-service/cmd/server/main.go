@@ -63,7 +63,6 @@ func main() {
 		store.NewPermissionRepository(),
 		store.NewTenantRepository(),
 	)
-
 	// REST 服务：供前端 SPA 调用。
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

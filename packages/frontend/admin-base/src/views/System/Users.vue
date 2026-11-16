@@ -11,7 +11,7 @@ const search = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 
-/** Load a bounded first page for the base package demonstration. */
+/** Load a bounded first page for the base package data view. */
 async function loadUsers() {
   loading.value = true
   errorMessage.value = ''

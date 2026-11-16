@@ -1,4 +1,4 @@
-import type { AuthPort } from './auth'
+import type { AuthPort, SignInCredentials } from './auth'
 import type { BaseServices } from './services'
 import type { Tenant, User } from './types/entities'
 import type { TenantId } from './types/identifiers'
@@ -72,7 +72,7 @@ export interface AdminSession {
    * Establish a session through the configured authentication adapter.
    * @returns Promise resolved after the session state is updated.
    */
-  signIn(): Promise<void>
+  signIn(credentials?: SignInCredentials): Promise<void>
   initialize(): Promise<void>
   can(permission?: string): boolean
   switchTenant(id: TenantId): Promise<void>

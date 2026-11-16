@@ -9,9 +9,22 @@ export interface AuthSession {
   currentTenantId: TenantId | null
 }
 
-/** Authentication adapter used to enter, restore, and clear the current session. */
+/** Credentials accepted by a real authentication backend. */
+export interface SignInCredentials {
+  username: string
+  password: string
+}
+
+/**
+ * Authentication adapter used to enter, restore, and clear the current session.
+ *
+ * Credentials are optional so local adapters can still sign in without input;
+ * HTTP adapters require them and surface an error when missing.
+ */
 export interface AuthPort {
-  signIn(): Promise<AuthSession>
+  signIn(credentials?: SignInCredentials): Promise<AuthSession>
   restore(): Promise<AuthSession | null>
   signOut(): Promise<void>
+  /** Persist a tenant switch in the backend when the adapter supports it. */
+  switchTenant?(id: TenantId): Promise<void>
 }
