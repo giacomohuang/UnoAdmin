@@ -24,7 +24,7 @@
       >
         <div
           data-org-drop-preview-card
-          class="absolute h-24 w-46 rounded-lg border-2 border-dashed border-brand bg-brand/12 shadow-[inset_0_0_0_1px_rgb(79_159_143_/_0.18)]"
+          class="absolute h-24 w-46 rounded-lg border-2 border-dashed border-brand bg-brand/12"
           :style="{
             left: `${entry.size.cardLeft}px`,
             top: `${entry.size.cardTop}px`
@@ -48,11 +48,11 @@
           @keydown.enter.stop.prevent="selectNode(entry.item)"
           @keydown.space.stop.prevent="selectNode(entry.item)"
         >
-          <span v-if="ghost && isGhostRoot" data-org-ghost-badge class="pointer-events-none absolute -right-2 -top-3 z6 inline-flex h-6 items-center gap-1 rounded-full border-2 border-white/85 bg-brand px-2 text-xs font-700 tracking-wide text-white">
+          <span v-if="ghost && isGhostRoot" data-org-ghost-badge class="pointer-events-none absolute left-2 -top-3 z6 inline-flex h-6 items-center gap-1 rounded-full border-1 border-white bg-brand px-2 text-xs tracking-wide text-white">
             <span class="i-lucide:move size-3"></span>
           </span>
 
-          <div class="relative mb-1 flex h-6 items-center justify-between rounded-[5px_5px_3px_3px] px-1 text-xs text-white">
+          <div class="relative mb-1 flex h-6 items-center justify-between px-1 text-xs text-white">
             <div class="relative z2 flex min-w-0 items-center gap-1">
               <span
                 v-if="editable && level !== 1"
