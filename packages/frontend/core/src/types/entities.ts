@@ -60,7 +60,7 @@ export interface OrgUnit {
 /** 管理端账户，携带租户、主体与组织授权范围。 */
 export interface Account {
   id: AccountId
-  username: string
+  accountName: string
   displayName: string
   email: string
   phone: string

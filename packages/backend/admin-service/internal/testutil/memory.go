@@ -52,7 +52,7 @@ func (r *AccountRepo) List(_ context.Context, q domain.ListQuery) (domain.PageRe
 		if q.Status != "" && account.Status != q.Status {
 			continue
 		}
-		if q.Search != "" && !containsFold(account.Username+account.DisplayName+account.Email+account.Phone, q.Search) {
+		if q.Search != "" && !containsFold(account.AccountName+account.DisplayName+account.Email+account.Phone, q.Search) {
 			continue
 		}
 		matched = append(matched, account)
@@ -70,20 +70,20 @@ func (r *AccountRepo) GetByID(_ context.Context, id string) (*domain.Account, er
 	return &account, nil
 }
 
-// GetByUsername 按用户名查找账户。
-func (r *AccountRepo) GetByUsername(_ context.Context, username string) (*domain.Account, error) {
+// GetByAccountName 按账号名查找账户。
+func (r *AccountRepo) GetByAccountName(_ context.Context, accountName string) (*domain.Account, error) {
 	for _, account := range r.Accounts {
-		if account.Username == username {
+		if account.AccountName == accountName {
 			return &account, nil
 		}
 	}
 	return nil, domain.ErrNotFound
 }
 
-// Create 写入账户并拒绝重复用户名。
+// Create 写入账户并拒绝重复账号名。
 func (r *AccountRepo) Create(_ context.Context, account domain.Account) (*domain.Account, error) {
 	for _, existing := range r.Accounts {
-		if existing.Username == account.Username {
+		if existing.AccountName == account.AccountName {
 			return nil, domain.ErrConflict
 		}
 	}

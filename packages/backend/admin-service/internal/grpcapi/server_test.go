@@ -37,12 +37,12 @@ func (fakeVerifier) Verify(_ context.Context, raw string) (*domain.Principal, er
 type fakeAdmin struct{}
 
 func (fakeAdmin) GetAccount(context.Context, string) (domain.Account, error) {
-	return domain.Account{ID: "acc-001", Username: "lin.wei", RoleNames: []string{"平台运营管理员"}}, nil
+	return domain.Account{ID: "acc-001", AccountName: "lin.wei", RoleNames: []string{"平台运营管理员"}}, nil
 }
 
 func (fakeAdmin) ListAccounts(_ context.Context, _ *domain.Principal, _ domain.ListQuery) (domain.PageResult[domain.Account], error) {
 	return domain.PageResult[domain.Account]{
-		Items: []domain.Account{{ID: "acc-001", Username: "lin.wei", RoleNames: []string{"平台运营管理员"}}},
+		Items: []domain.Account{{ID: "acc-001", AccountName: "lin.wei", RoleNames: []string{"平台运营管理员"}}},
 		Total: 1,
 	}, nil
 }
@@ -97,7 +97,7 @@ func serviceContext() context.Context {
 
 func TestServiceTokenInterceptorRejectsMissingToken(t *testing.T) {
 	client := pb.NewAdminBaseClient(startServer(t))
-	_, err := client.ListUsers(context.Background(), &pb.ListUsersRequest{})
+	_, err := client.ListAccounts(context.Background(), &pb.ListAccountsRequest{})
 	if status.Code(err) != codes.Unauthenticated {
 		t.Fatalf("error = %v, want Unauthenticated", err)
 	}
@@ -109,7 +109,7 @@ func TestVerifyTokenReturnsLivePermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyToken() error = %v", err)
 	}
-	if !resp.GetValid() || resp.GetUserId() != "acc-001" || resp.GetTenantId() != "tenant-holding" {
+	if !resp.GetValid() || resp.GetAccountId() != "acc-001" || resp.GetTenantId() != "tenant-holding" {
 		t.Fatalf("response = %+v, want valid acc-001 / tenant-holding", resp)
 	}
 	if len(resp.GetPermissions()) != 1 || resp.GetPermissions()[0] != "account:view" {
@@ -117,11 +117,11 @@ func TestVerifyTokenReturnsLivePermissions(t *testing.T) {
 	}
 }
 
-func TestListUsersWithServiceToken(t *testing.T) {
+func TestListAccountsWithServiceToken(t *testing.T) {
 	client := pb.NewAdminBaseClient(startServer(t))
-	resp, err := client.ListUsers(serviceContext(), &pb.ListUsersRequest{Page: 1, PageSize: 10})
+	resp, err := client.ListAccounts(serviceContext(), &pb.ListAccountsRequest{Page: 1, PageSize: 10})
 	if err != nil {
-		t.Fatalf("ListUsers() error = %v", err)
+		t.Fatalf("ListAccounts() error = %v", err)
 	}
 	if resp.GetTotal() != 1 || len(resp.GetItems()) != 1 || resp.GetItems()[0].GetRoleNames()[0] != "平台运营管理员" {
 		t.Fatalf("response = %+v, want one account with role name", resp)

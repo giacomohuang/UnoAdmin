@@ -39,7 +39,7 @@ type OrgRepository interface {
 type AccountRepository interface {
 	List(ctx context.Context, query ListQuery) (PageResult[Account], error)
 	GetByID(ctx context.Context, id string) (*Account, error)
-	GetByUsername(ctx context.Context, username string) (*Account, error)
+	GetByAccountName(ctx context.Context, accountName string) (*Account, error)
 	Create(ctx context.Context, account Account) (*Account, error)
 	Update(ctx context.Context, account Account) (*Account, error)
 	UpdateStatus(ctx context.Context, id string, status string) error

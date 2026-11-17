@@ -5,28 +5,28 @@ package adminbase.v1;
 
 option go_package = "github.com/unoadmin/admin-service/gen/adminbase/v1;adminbasev1";
 
-// AdminBase 暴露基础管理能力：令牌校验、用户/角色/权限/租户查询与权限判定。
+// AdminBase 暴露基础管理能力：令牌校验、账户/角色/权限/租户查询与权限判定。
 service AdminBase {
-  // VerifyToken 校验用户令牌并返回主体信息，供其它微服务做鉴权。
+  // VerifyToken 校验账户令牌并返回主体信息，供其它微服务做鉴权。
   rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
-  // GetUser 按 ID 查询用户。
-  rpc GetUser(GetUserRequest) returns (GetUserResponse);
-  // ListUsers 分页查询用户。
-  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // GetAccount 按 ID 查询账户。
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+  // ListAccounts 分页查询账户。
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
   // ListRoles 分页查询角色。
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // ListPermissions 返回权限树。
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
   // ListTenants 分页查询租户。
   rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
-  // HasPermission 判断某用户是否拥有指定权限码。
+  // HasPermission 判断某账户是否拥有指定权限码。
   rpc HasPermission(HasPermissionRequest) returns (HasPermissionResponse);
 }
 
-// User 与前端 core 的 User 接口字段保持一致。
-message User {
+// Account 与前端 core 的 Account 接口字段保持一致。
+message Account {
   string id = 1;
-  string username = 2;
+  string account_name = 2;
   string display_name = 3;
   string email = 4;
   string status = 5;
@@ -39,7 +39,7 @@ message Role {
   string name = 2;
   string description = 3;
   repeated string permission_codes = 4;
-  int32 user_count = 5;
+  int32 account_count = 5;
 }
 
 // Permission 支持 children 递归，构成权限树。
@@ -67,33 +67,33 @@ message VerifyTokenRequest {
 // VerifyTokenResponse 返回校验结果与令牌中的主体信息。
 message VerifyTokenResponse {
   bool valid = 1;
-  string user_id = 2;
+  string account_id = 2;
   string tenant_id = 3;
   repeated string permissions = 4;
   string error = 5;
 }
 
-// GetUserRequest 按用户 ID 查询。
-message GetUserRequest {
+// GetAccountRequest 按账户 ID 查询。
+message GetAccountRequest {
   string id = 1;
 }
 
-// GetUserResponse 返回单个用户。
-message GetUserResponse {
-  User user = 1;
+// GetAccountResponse 返回单个账户。
+message GetAccountResponse {
+  Account account = 1;
 }
 
-// ListUsersRequest 使用与前端 ListQuery 相同的分页参数。
-message ListUsersRequest {
+// ListAccountsRequest 使用与前端 ListQuery 相同的分页参数。
+message ListAccountsRequest {
   int32 page = 1;
   int32 page_size = 2;
   string search = 3;
   string tenant_id = 4;
 }
 
-// ListUsersResponse 使用与前端 PageResult 相同的结构。
-message ListUsersResponse {
-  repeated User items = 1;
+// ListAccountsResponse 使用与前端 PageResult 相同的结构。
+message ListAccountsResponse {
+  repeated Account items = 1;
   int32 total = 2;
 }
 
@@ -131,9 +131,9 @@ message ListTenantsResponse {
   int32 total = 2;
 }
 
-// HasPermissionRequest 让调用方按用户与权限码判定授权结果。
+// HasPermissionRequest 让调用方按账户与权限码判定授权结果。
 message HasPermissionRequest {
-  string user_id = 1;
+  string account_id = 1;
   string permission = 2;
 }
 

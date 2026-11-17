@@ -12,7 +12,7 @@ import (
 
 // authServiceAPI 定义认证处理器依赖的用例。
 type authServiceAPI interface {
-	SignIn(ctx context.Context, username string, password string) (domain.TokenPair, domain.AuthSession, error)
+	SignIn(ctx context.Context, accountName string, password string) (domain.TokenPair, domain.AuthSession, error)
 	Refresh(ctx context.Context, refreshToken string) (domain.TokenPair, domain.AuthSession, error)
 	Restore(ctx context.Context, raw string) (domain.AuthSession, error)
 	SignOut(ctx context.Context, raw string, refreshToken string) error
@@ -23,8 +23,8 @@ type authServiceAPI interface {
 
 // loginRequest 是登录请求体。
 type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	AccountName string `json:"accountName"`
+	Password    string `json:"password"`
 }
 
 // loginResponse 把令牌对与会话平铺为前端可直接消费的结构。
@@ -57,13 +57,13 @@ func (s *Server) handleLogin(c *gin.Context) {
 		writeError(c, domain.ErrInvalid)
 		return
 	}
-	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || req.Password == "" {
+	req.AccountName = strings.TrimSpace(req.AccountName)
+	if req.AccountName == "" || req.Password == "" {
 		writeError(c, domain.ErrInvalid)
 		return
 	}
 
-	pair, session, err := s.auth.SignIn(c.Request.Context(), req.Username, req.Password)
+	pair, session, err := s.auth.SignIn(c.Request.Context(), req.AccountName, req.Password)
 	if err != nil {
 		writeError(c, err)
 		return

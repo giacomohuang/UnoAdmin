@@ -79,7 +79,7 @@ type OrgInput struct {
 // AccountInput 是新建或更新账户时允许提交的字段。
 type AccountInput struct {
 	ID             string   `json:"id"`
-	Username       string   `json:"username"`
+	AccountName    string   `json:"accountName"`
 	DisplayName    string   `json:"displayName"`
 	Password       string   `json:"password"`
 	Email          string   `json:"email"`
@@ -526,7 +526,7 @@ func (s *Service) SaveAccount(ctx context.Context, principal *domain.Principal, 
 	if tenantID == "" {
 		return nil, domain.ErrForbidden
 	}
-	input.Username = strings.TrimSpace(input.Username)
+	input.AccountName = strings.TrimSpace(input.AccountName)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	if input.DisplayName == "" {
 		return nil, fmt.Errorf("%w: display name is required", domain.ErrInvalid)
@@ -581,15 +581,15 @@ func (s *Service) SaveAccount(ctx context.Context, principal *domain.Principal, 
 
 	now := time.Now().UTC()
 	if input.ID == "" {
-		if input.Username == "" || len(input.Password) < 8 {
-			return nil, fmt.Errorf("%w: username and an 8+ char password are required", domain.ErrInvalid)
+		if input.AccountName == "" || len(input.Password) < 8 {
+			return nil, fmt.Errorf("%w: account name and an 8+ char password are required", domain.ErrInvalid)
 		}
 		hash, err := s.hasher.Hash(input.Password)
 		if err != nil {
 			return nil, err
 		}
 		created, err := s.accounts.Create(ctx, domain.Account{
-			Username: input.Username, PasswordHash: hash, DisplayName: input.DisplayName,
+			AccountName: input.AccountName, PasswordHash: hash, DisplayName: input.DisplayName,
 			Email: input.Email, Phone: input.Phone, Status: input.Status, TenantID: tenantID,
 			DataScope: input.DataScope, LegalEntityIDs: nonNil(input.LegalEntityIDs),
 			OrgIDs: nonNil(input.OrgIDs), RoleIDs: nonNil(input.RoleIDs),

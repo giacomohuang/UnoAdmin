@@ -4,9 +4,9 @@ import { expect, test, type Page } from '@playwright/test'
 const password = process.env.E2E_PASSWORD ?? 'admin123'
 
 /** 用账号密码登录，并等待进入工作台。 */
-async function signIn(page: Page, username = 'chen.yu') {
+async function signIn(page: Page, accountName = 'chen.yu') {
   await page.goto('/signin')
-  await page.getByPlaceholder('请输入账号').fill(username)
+  await page.getByPlaceholder('请输入账号').fill(accountName)
   await page.getByPlaceholder('请输入密码').fill(password)
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)

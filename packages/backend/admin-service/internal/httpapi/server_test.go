@@ -56,7 +56,7 @@ type fakeAdmin struct {
 
 func (f *fakeAdmin) ListAccounts(_ context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Account], error) {
 	f.lastQuery, f.lastPrincipal = query, principal
-	return domain.PageResult[domain.Account]{Items: []domain.Account{{ID: "acc-001", Username: "lin.wei"}}, Total: 1}, f.err
+	return domain.PageResult[domain.Account]{Items: []domain.Account{{ID: "acc-001", AccountName: "lin.wei"}}, Total: 1}, f.err
 }
 
 func (f *fakeAdmin) SaveAccount(context.Context, *domain.Principal, admin.AccountInput) (*domain.Account, error) {
@@ -135,12 +135,12 @@ func TestHealthzIsPublic(t *testing.T) {
 
 func TestLoginReturnsTokenAndSession(t *testing.T) {
 	auth := &fakeAuth{session: domain.AuthSession{
-		Account:     domain.Account{ID: "acc-001", Username: "lin.wei"},
+		Account:     domain.Account{ID: "acc-001", AccountName: "lin.wei"},
 		Permissions: []string{"*"}, CurrentTenantID: "tenant-holding", CurrentLegalEntityID: "le-hq",
 		LegalEntities: []domain.LegalEntity{{ID: "le-hq", Name: "集团总部"}},
 	}}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"username":"lin.wei","password":"secret"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"accountName":"lin.wei","password":"secret"}`))
 	handler(auth, &fakeAdmin{}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {

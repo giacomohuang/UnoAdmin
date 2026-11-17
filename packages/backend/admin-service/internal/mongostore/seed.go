@@ -14,7 +14,7 @@ import (
 // seedPassword 是种子账号的默认密码，可通过命令行参数覆盖。
 const seedPassword = "admin123"
 
-// seedWriter 按自然键（编码、用户名、权限码等）幂等写入种子数据。
+// seedWriter 按自然键（编码、账号名、权限码等）幂等写入种子数据。
 //
 // 主键统一由 MongoDB 的 ObjectId 生成器产生，不使用业务键派生，
 // 因此首次插入即得到标准 ObjectId；重复执行时按自然键复用已有主键。
@@ -412,7 +412,7 @@ func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID
 // ensureAccounts 写入四个演示账户，密码统一使用种子密码的哈希。
 func (w *seedWriter) ensureAccounts(hash string, holdingID bson.ObjectID, mingyuanID bson.ObjectID, hqID bson.ObjectID, eastID bson.ObjectID, mingyuanEntityID bson.ObjectID, eastOrgID bson.ObjectID, mingyuanOrgID bson.ObjectID, now time.Time) error {
 	accounts := []struct {
-		username      string
+		accountName   string
 		displayName   string
 		email         string
 		phone         string
@@ -424,22 +424,22 @@ func (w *seedWriter) ensureAccounts(hash string, holdingID bson.ObjectID, mingyu
 		roleCode      string
 	}{
 		{
-			username: "lin.wei", displayName: "林薇", email: "lin.wei@example.com", phone: "13800000001",
+			accountName: "lin.wei", displayName: "林薇", email: "lin.wei@example.com", phone: "13800000001",
 			tenantID: bson.NilObjectID, scope: domain.DataScopeTenant, platformAdmin: true,
 			entityIDs: bson.A{}, orgIDs: bson.A{}, roleCode: "PLATFORM_ADMIN",
 		},
 		{
-			username: "chen.yu", displayName: "陈宇", email: "chen.yu@example.com", phone: "13800000002",
+			accountName: "chen.yu", displayName: "陈宇", email: "chen.yu@example.com", phone: "13800000002",
 			tenantID: holdingID, scope: domain.DataScopeTenant, platformAdmin: false,
 			entityIDs: bson.A{hqID}, orgIDs: bson.A{}, roleCode: "GROUP_ADMIN",
 		},
 		{
-			username: "zhao.ming", displayName: "赵明", email: "zhao.ming@example.com", phone: "13800000003",
+			accountName: "zhao.ming", displayName: "赵明", email: "zhao.ming@example.com", phone: "13800000003",
 			tenantID: holdingID, scope: domain.DataScopeEntity, platformAdmin: false,
 			entityIDs: bson.A{eastID}, orgIDs: bson.A{eastOrgID}, roleCode: "ENTITY_ADMIN",
 		},
 		{
-			username: "li.na", displayName: "李娜", email: "li.na@example.com", phone: "13800000004",
+			accountName: "li.na", displayName: "李娜", email: "li.na@example.com", phone: "13800000004",
 			tenantID: mingyuanID, scope: domain.DataScopeTenant, platformAdmin: false,
 			entityIDs: bson.A{mingyuanEntityID}, orgIDs: bson.A{mingyuanOrgID}, roleCode: "TENANT_ADMIN",
 		},
@@ -450,8 +450,8 @@ func (w *seedWriter) ensureAccounts(hash string, holdingID bson.ObjectID, mingyu
 		if !ok {
 			return errors.New("role must be seeded before account: " + account.roleCode)
 		}
-		if _, err := w.ensure("accounts", bson.D{{Key: "username", Value: account.username}}, bson.D{
-			{Key: "username", Value: account.username}, {Key: "passwordHash", Value: hash},
+		if _, err := w.ensure("accounts", bson.D{{Key: "accountName", Value: account.accountName}}, bson.D{
+			{Key: "accountName", Value: account.accountName}, {Key: "passwordHash", Value: hash},
 			{Key: "displayName", Value: account.displayName}, {Key: "email", Value: account.email},
 			{Key: "phone", Value: account.phone}, {Key: "status", Value: domain.UserActive},
 			{Key: "tenantId", Value: account.tenantID}, {Key: "dataScope", Value: account.scope},

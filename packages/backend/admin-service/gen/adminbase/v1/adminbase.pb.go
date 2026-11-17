@@ -23,11 +23,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// User 与前端 core 的 User 接口字段保持一致。
-type User struct {
+// Account 与前端 core 的 Account 接口字段保持一致。
+type Account struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	AccountName   string                 `protobuf:"bytes,2,opt,name=account_name,json=accountName,proto3" json:"account_name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Email         string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
@@ -36,20 +36,20 @@ type User struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *User) Reset() {
-	*x = User{}
+func (x *Account) Reset() {
+	*x = Account{}
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *User) String() string {
+func (x *Account) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*User) ProtoMessage() {}
+func (*Account) ProtoMessage() {}
 
-func (x *User) ProtoReflect() protoreflect.Message {
+func (x *Account) ProtoReflect() protoreflect.Message {
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -61,47 +61,47 @@ func (x *User) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use User.ProtoReflect.Descriptor instead.
-func (*User) Descriptor() ([]byte, []int) {
+// Deprecated: Use Account.ProtoReflect.Descriptor instead.
+func (*Account) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *User) GetId() string {
+func (x *Account) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *User) GetUsername() string {
+func (x *Account) GetAccountName() string {
 	if x != nil {
-		return x.Username
+		return x.AccountName
 	}
 	return ""
 }
 
-func (x *User) GetDisplayName() string {
+func (x *Account) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-func (x *User) GetEmail() string {
+func (x *Account) GetEmail() string {
 	if x != nil {
 		return x.Email
 	}
 	return ""
 }
 
-func (x *User) GetStatus() string {
+func (x *Account) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *User) GetRoleNames() []string {
+func (x *Account) GetRoleNames() []string {
 	if x != nil {
 		return x.RoleNames
 	}
@@ -115,7 +115,7 @@ type Role struct {
 	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description     string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	PermissionCodes []string               `protobuf:"bytes,4,rep,name=permission_codes,json=permissionCodes,proto3" json:"permission_codes,omitempty"`
-	UserCount       int32                  `protobuf:"varint,5,opt,name=user_count,json=userCount,proto3" json:"user_count,omitempty"`
+	AccountCount    int32                  `protobuf:"varint,5,opt,name=account_count,json=accountCount,proto3" json:"account_count,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -178,9 +178,9 @@ func (x *Role) GetPermissionCodes() []string {
 	return nil
 }
 
-func (x *Role) GetUserCount() int32 {
+func (x *Role) GetAccountCount() int32 {
 	if x != nil {
-		return x.UserCount
+		return x.AccountCount
 	}
 	return 0
 }
@@ -380,7 +380,7 @@ func (x *VerifyTokenRequest) GetToken() string {
 type VerifyTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Valid         bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	TenantId      string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Permissions   []string               `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
@@ -425,9 +425,9 @@ func (x *VerifyTokenResponse) GetValid() bool {
 	return false
 }
 
-func (x *VerifyTokenResponse) GetUserId() string {
+func (x *VerifyTokenResponse) GetAccountId() string {
 	if x != nil {
-		return x.UserId
+		return x.AccountId
 	}
 	return ""
 }
@@ -453,28 +453,28 @@ func (x *VerifyTokenResponse) GetError() string {
 	return ""
 }
 
-// GetUserRequest 按用户 ID 查询。
-type GetUserRequest struct {
+// GetAccountRequest 按账户 ID 查询。
+type GetAccountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetUserRequest) Reset() {
-	*x = GetUserRequest{}
+func (x *GetAccountRequest) Reset() {
+	*x = GetAccountRequest{}
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetUserRequest) String() string {
+func (x *GetAccountRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetUserRequest) ProtoMessage() {}
+func (*GetAccountRequest) ProtoMessage() {}
 
-func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
+func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -486,40 +486,40 @@ func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
-func (*GetUserRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAccountRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountRequest) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetUserRequest) GetId() string {
+func (x *GetAccountRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-// GetUserResponse 返回单个用户。
-type GetUserResponse struct {
+// GetAccountResponse 返回单个账户。
+type GetAccountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Account       *Account               `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetUserResponse) Reset() {
-	*x = GetUserResponse{}
+func (x *GetAccountResponse) Reset() {
+	*x = GetAccountResponse{}
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetUserResponse) String() string {
+func (x *GetAccountResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetUserResponse) ProtoMessage() {}
+func (*GetAccountResponse) ProtoMessage() {}
 
-func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
+func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -531,20 +531,20 @@ func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
-func (*GetUserResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAccountResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountResponse) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetUserResponse) GetUser() *User {
+func (x *GetAccountResponse) GetAccount() *Account {
 	if x != nil {
-		return x.User
+		return x.Account
 	}
 	return nil
 }
 
-// ListUsersRequest 使用与前端 ListQuery 相同的分页参数。
-type ListUsersRequest struct {
+// ListAccountsRequest 使用与前端 ListQuery 相同的分页参数。
+type ListAccountsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
@@ -554,20 +554,20 @@ type ListUsersRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListUsersRequest) Reset() {
-	*x = ListUsersRequest{}
+func (x *ListAccountsRequest) Reset() {
+	*x = ListAccountsRequest{}
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListUsersRequest) String() string {
+func (x *ListAccountsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListUsersRequest) ProtoMessage() {}
+func (*ListAccountsRequest) ProtoMessage() {}
 
-func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
+func (x *ListAccountsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -579,62 +579,62 @@ func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
-func (*ListUsersRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListAccountsRequest.ProtoReflect.Descriptor instead.
+func (*ListAccountsRequest) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *ListUsersRequest) GetPage() int32 {
+func (x *ListAccountsRequest) GetPage() int32 {
 	if x != nil {
 		return x.Page
 	}
 	return 0
 }
 
-func (x *ListUsersRequest) GetPageSize() int32 {
+func (x *ListAccountsRequest) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListUsersRequest) GetSearch() string {
+func (x *ListAccountsRequest) GetSearch() string {
 	if x != nil {
 		return x.Search
 	}
 	return ""
 }
 
-func (x *ListUsersRequest) GetTenantId() string {
+func (x *ListAccountsRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
 	return ""
 }
 
-// ListUsersResponse 使用与前端 PageResult 相同的结构。
-type ListUsersResponse struct {
+// ListAccountsResponse 使用与前端 PageResult 相同的结构。
+type ListAccountsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*User                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Items         []*Account             `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListUsersResponse) Reset() {
-	*x = ListUsersResponse{}
+func (x *ListAccountsResponse) Reset() {
+	*x = ListAccountsResponse{}
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListUsersResponse) String() string {
+func (x *ListAccountsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListUsersResponse) ProtoMessage() {}
+func (*ListAccountsResponse) ProtoMessage() {}
 
-func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
+func (x *ListAccountsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_adminbase_v1_adminbase_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -646,19 +646,19 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
-func (*ListUsersResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListAccountsResponse.ProtoReflect.Descriptor instead.
+func (*ListAccountsResponse) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ListUsersResponse) GetItems() []*User {
+func (x *ListAccountsResponse) GetItems() []*Account {
 	if x != nil {
 		return x.Items
 	}
 	return nil
 }
 
-func (x *ListUsersResponse) GetTotal() int32 {
+func (x *ListAccountsResponse) GetTotal() int32 {
 	if x != nil {
 		return x.Total
 	}
@@ -975,10 +975,10 @@ func (x *ListTenantsResponse) GetTotal() int32 {
 	return 0
 }
 
-// HasPermissionRequest 让调用方按用户与权限码判定授权结果。
+// HasPermissionRequest 让调用方按账户与权限码判定授权结果。
 type HasPermissionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Permission    string                 `protobuf:"bytes,2,opt,name=permission,proto3" json:"permission,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1014,9 +1014,9 @@ func (*HasPermissionRequest) Descriptor() ([]byte, []int) {
 	return file_adminbase_v1_adminbase_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *HasPermissionRequest) GetUserId() string {
+func (x *HasPermissionRequest) GetAccountId() string {
 	if x != nil {
-		return x.UserId
+		return x.AccountId
 	}
 	return ""
 }
@@ -1077,22 +1077,21 @@ var File_adminbase_v1_adminbase_proto protoreflect.FileDescriptor
 
 const file_adminbase_v1_adminbase_proto_rawDesc = "" +
 	"\n" +
-	"\x1cadminbase/v1/adminbase.proto\x12\fadminbase.v1\"\xa2\x01\n" +
-	"\x04User\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
+	"\x1cadminbase/v1/adminbase.proto\x12\fadminbase.v1\"\xac\x01\n" +
+	"\aAccount\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\faccount_name\x18\x02 \x01(\tR\vaccountName\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x14\n" +
 	"\x05email\x18\x04 \x01(\tR\x05email\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x06 \x03(\tR\troleNames\"\x96\x01\n" +
+	"role_names\x18\x06 \x03(\tR\troleNames\"\x9c\x01\n" +
 	"\x04Role\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12)\n" +
-	"\x10permission_codes\x18\x04 \x03(\tR\x0fpermissionCodes\x12\x1d\n" +
-	"\n" +
-	"user_count\x18\x05 \x01(\x05R\tuserCount\"\x8e\x01\n" +
+	"\x10permission_codes\x18\x04 \x03(\tR\x0fpermissionCodes\x12#\n" +
+	"\raccount_count\x18\x05 \x01(\x05R\faccountCount\"\x8e\x01\n" +
 	"\n" +
 	"Permission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -1106,24 +1105,25 @@ const file_adminbase_v1_adminbase_proto_rawDesc = "" +
 	"\x04code\x18\x03 \x01(\tR\x04code\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\"*\n" +
 	"\x12VerifyTokenRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\x99\x01\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\x9f\x01\n" +
 	"\x13VerifyTokenResponse\x12\x14\n" +
-	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1b\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x1b\n" +
 	"\ttenant_id\x18\x03 \x01(\tR\btenantId\x12 \n" +
 	"\vpermissions\x18\x04 \x03(\tR\vpermissions\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\" \n" +
-	"\x0eGetUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"9\n" +
-	"\x0fGetUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.adminbase.v1.UserR\x04user\"x\n" +
-	"\x10ListUsersRequest\x12\x12\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"#\n" +
+	"\x11GetAccountRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"E\n" +
+	"\x12GetAccountResponse\x12/\n" +
+	"\aaccount\x18\x01 \x01(\v2\x15.adminbase.v1.AccountR\aaccount\"{\n" +
+	"\x13ListAccountsRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x16\n" +
 	"\x06search\x18\x03 \x01(\tR\x06search\x12\x1b\n" +
-	"\ttenant_id\x18\x04 \x01(\tR\btenantId\"S\n" +
-	"\x11ListUsersResponse\x12(\n" +
-	"\x05items\x18\x01 \x03(\v2\x12.adminbase.v1.UserR\x05items\x12\x14\n" +
+	"\ttenant_id\x18\x04 \x01(\tR\btenantId\"Y\n" +
+	"\x14ListAccountsResponse\x12+\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.adminbase.v1.AccountR\x05items\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\"[\n" +
 	"\x10ListRolesRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
@@ -1141,18 +1141,20 @@ const file_adminbase_v1_adminbase_proto_rawDesc = "" +
 	"\x06search\x18\x03 \x01(\tR\x06search\"W\n" +
 	"\x13ListTenantsResponse\x12*\n" +
 	"\x05items\x18\x01 \x03(\v2\x14.adminbase.v1.TenantR\x05items\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"O\n" +
-	"\x14HasPermissionRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1e\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"U\n" +
+	"\x14HasPermissionRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x02 \x01(\tR\n" +
 	"permission\"1\n" +
 	"\x15HasPermissionResponse\x12\x18\n" +
-	"\aallowed\x18\x01 \x01(\bR\aallowed2\xd1\x04\n" +
+	"\aallowed\x18\x01 \x01(\bR\aallowed2\xe3\x04\n" +
 	"\tAdminBase\x12R\n" +
-	"\vVerifyToken\x12 .adminbase.v1.VerifyTokenRequest\x1a!.adminbase.v1.VerifyTokenResponse\x12F\n" +
-	"\aGetUser\x12\x1c.adminbase.v1.GetUserRequest\x1a\x1d.adminbase.v1.GetUserResponse\x12L\n" +
-	"\tListUsers\x12\x1e.adminbase.v1.ListUsersRequest\x1a\x1f.adminbase.v1.ListUsersResponse\x12L\n" +
+	"\vVerifyToken\x12 .adminbase.v1.VerifyTokenRequest\x1a!.adminbase.v1.VerifyTokenResponse\x12O\n" +
+	"\n" +
+	"GetAccount\x12\x1f.adminbase.v1.GetAccountRequest\x1a .adminbase.v1.GetAccountResponse\x12U\n" +
+	"\fListAccounts\x12!.adminbase.v1.ListAccountsRequest\x1a\".adminbase.v1.ListAccountsResponse\x12L\n" +
 	"\tListRoles\x12\x1e.adminbase.v1.ListRolesRequest\x1a\x1f.adminbase.v1.ListRolesResponse\x12^\n" +
 	"\x0fListPermissions\x12$.adminbase.v1.ListPermissionsRequest\x1a%.adminbase.v1.ListPermissionsResponse\x12R\n" +
 	"\vListTenants\x12 .adminbase.v1.ListTenantsRequest\x1a!.adminbase.v1.ListTenantsResponse\x12X\n" +
@@ -1172,16 +1174,16 @@ func file_adminbase_v1_adminbase_proto_rawDescGZIP() []byte {
 
 var file_adminbase_v1_adminbase_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_adminbase_v1_adminbase_proto_goTypes = []any{
-	(*User)(nil),                    // 0: adminbase.v1.User
+	(*Account)(nil),                 // 0: adminbase.v1.Account
 	(*Role)(nil),                    // 1: adminbase.v1.Role
 	(*Permission)(nil),              // 2: adminbase.v1.Permission
 	(*Tenant)(nil),                  // 3: adminbase.v1.Tenant
 	(*VerifyTokenRequest)(nil),      // 4: adminbase.v1.VerifyTokenRequest
 	(*VerifyTokenResponse)(nil),     // 5: adminbase.v1.VerifyTokenResponse
-	(*GetUserRequest)(nil),          // 6: adminbase.v1.GetUserRequest
-	(*GetUserResponse)(nil),         // 7: adminbase.v1.GetUserResponse
-	(*ListUsersRequest)(nil),        // 8: adminbase.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),       // 9: adminbase.v1.ListUsersResponse
+	(*GetAccountRequest)(nil),       // 6: adminbase.v1.GetAccountRequest
+	(*GetAccountResponse)(nil),      // 7: adminbase.v1.GetAccountResponse
+	(*ListAccountsRequest)(nil),     // 8: adminbase.v1.ListAccountsRequest
+	(*ListAccountsResponse)(nil),    // 9: adminbase.v1.ListAccountsResponse
 	(*ListRolesRequest)(nil),        // 10: adminbase.v1.ListRolesRequest
 	(*ListRolesResponse)(nil),       // 11: adminbase.v1.ListRolesResponse
 	(*ListPermissionsRequest)(nil),  // 12: adminbase.v1.ListPermissionsRequest
@@ -1193,21 +1195,21 @@ var file_adminbase_v1_adminbase_proto_goTypes = []any{
 }
 var file_adminbase_v1_adminbase_proto_depIdxs = []int32{
 	2,  // 0: adminbase.v1.Permission.children:type_name -> adminbase.v1.Permission
-	0,  // 1: adminbase.v1.GetUserResponse.user:type_name -> adminbase.v1.User
-	0,  // 2: adminbase.v1.ListUsersResponse.items:type_name -> adminbase.v1.User
+	0,  // 1: adminbase.v1.GetAccountResponse.account:type_name -> adminbase.v1.Account
+	0,  // 2: adminbase.v1.ListAccountsResponse.items:type_name -> adminbase.v1.Account
 	1,  // 3: adminbase.v1.ListRolesResponse.items:type_name -> adminbase.v1.Role
 	2,  // 4: adminbase.v1.ListPermissionsResponse.items:type_name -> adminbase.v1.Permission
 	3,  // 5: adminbase.v1.ListTenantsResponse.items:type_name -> adminbase.v1.Tenant
 	4,  // 6: adminbase.v1.AdminBase.VerifyToken:input_type -> adminbase.v1.VerifyTokenRequest
-	6,  // 7: adminbase.v1.AdminBase.GetUser:input_type -> adminbase.v1.GetUserRequest
-	8,  // 8: adminbase.v1.AdminBase.ListUsers:input_type -> adminbase.v1.ListUsersRequest
+	6,  // 7: adminbase.v1.AdminBase.GetAccount:input_type -> adminbase.v1.GetAccountRequest
+	8,  // 8: adminbase.v1.AdminBase.ListAccounts:input_type -> adminbase.v1.ListAccountsRequest
 	10, // 9: adminbase.v1.AdminBase.ListRoles:input_type -> adminbase.v1.ListRolesRequest
 	12, // 10: adminbase.v1.AdminBase.ListPermissions:input_type -> adminbase.v1.ListPermissionsRequest
 	14, // 11: adminbase.v1.AdminBase.ListTenants:input_type -> adminbase.v1.ListTenantsRequest
 	16, // 12: adminbase.v1.AdminBase.HasPermission:input_type -> adminbase.v1.HasPermissionRequest
 	5,  // 13: adminbase.v1.AdminBase.VerifyToken:output_type -> adminbase.v1.VerifyTokenResponse
-	7,  // 14: adminbase.v1.AdminBase.GetUser:output_type -> adminbase.v1.GetUserResponse
-	9,  // 15: adminbase.v1.AdminBase.ListUsers:output_type -> adminbase.v1.ListUsersResponse
+	7,  // 14: adminbase.v1.AdminBase.GetAccount:output_type -> adminbase.v1.GetAccountResponse
+	9,  // 15: adminbase.v1.AdminBase.ListAccounts:output_type -> adminbase.v1.ListAccountsResponse
 	11, // 16: adminbase.v1.AdminBase.ListRoles:output_type -> adminbase.v1.ListRolesResponse
 	13, // 17: adminbase.v1.AdminBase.ListPermissions:output_type -> adminbase.v1.ListPermissionsResponse
 	15, // 18: adminbase.v1.AdminBase.ListTenants:output_type -> adminbase.v1.ListTenantsResponse

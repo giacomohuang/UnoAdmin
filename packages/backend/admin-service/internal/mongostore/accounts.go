@@ -15,7 +15,7 @@ import (
 // accountDoc 是管理端账户的持久化结构，租户、主体、组织与角色均以 ObjectId 引用。
 type accountDoc struct {
 	ID             bson.ObjectID   `bson:"_id"`
-	Username       string          `bson:"username"`
+	AccountName    string          `bson:"accountName"`
 	PasswordHash   string          `bson:"passwordHash"`
 	DisplayName    string          `bson:"displayName"`
 	Email          string          `bson:"email"`
@@ -34,7 +34,7 @@ type accountDoc struct {
 // toDomain 把持久化结构转换为领域实体。
 func (d accountDoc) toDomain() domain.Account {
 	return domain.Account{
-		ID: objectIDHex(d.ID), Username: d.Username, PasswordHash: d.PasswordHash,
+		ID: objectIDHex(d.ID), AccountName: d.AccountName, PasswordHash: d.PasswordHash,
 		DisplayName: d.DisplayName, Email: d.Email, Phone: d.Phone, Status: d.Status,
 		TenantID: objectIDHex(d.TenantID), DataScope: d.DataScope, PlatformAdmin: d.PlatformAdmin,
 		LegalEntityIDs: objectIDHexes(d.LegalEntityIDs), OrgIDs: objectIDHexes(d.OrgIDs),
@@ -68,7 +68,7 @@ func accountDocFrom(account domain.Account) (accountDoc, error) {
 		return accountDoc{}, err
 	}
 	return accountDoc{
-		ID: id, Username: account.Username, PasswordHash: account.PasswordHash,
+		ID: id, AccountName: account.AccountName, PasswordHash: account.PasswordHash,
 		DisplayName: account.DisplayName, Email: account.Email, Phone: account.Phone, Status: account.Status,
 		TenantID: tenantID, DataScope: account.DataScope, PlatformAdmin: account.PlatformAdmin,
 		LegalEntityIDs: entityIDs, OrgIDs: orgIDs, RoleIDs: roleIDs,
@@ -112,7 +112,7 @@ func (r *AccountRepository) List(ctx context.Context, query domain.ListQuery) (d
 	if query.Search != "" {
 		pattern := primitiveRegex(query.Search)
 		filter = append(filter, bson.E{Key: "$or", Value: bson.A{
-			bson.D{{Key: "username", Value: pattern}},
+			bson.D{{Key: "accountName", Value: pattern}},
 			bson.D{{Key: "displayName", Value: pattern}},
 			bson.D{{Key: "email", Value: pattern}},
 			bson.D{{Key: "phone", Value: pattern}},
@@ -140,12 +140,12 @@ func (r *AccountRepository) GetByID(ctx context.Context, id string) (*domain.Acc
 	return r.findOne(ctx, bson.D{{Key: "_id", Value: oid}})
 }
 
-// GetByUsername 按用户名查询账户，username 上有唯一索引。
-func (r *AccountRepository) GetByUsername(ctx context.Context, username string) (*domain.Account, error) {
-	return r.findOne(ctx, bson.D{{Key: "username", Value: username}})
+// GetByAccountName 按账号名查询账户，accountName 上有唯一索引。
+func (r *AccountRepository) GetByAccountName(ctx context.Context, accountName string) (*domain.Account, error) {
+	return r.findOne(ctx, bson.D{{Key: "accountName", Value: accountName}})
 }
 
-// Create 写入账户，用户名冲突时返回 ErrConflict。
+// Create 写入账户，账号名冲突时返回 ErrConflict。
 func (r *AccountRepository) Create(ctx context.Context, account domain.Account) (*domain.Account, error) {
 	doc, err := accountDocFrom(account)
 	if err != nil {

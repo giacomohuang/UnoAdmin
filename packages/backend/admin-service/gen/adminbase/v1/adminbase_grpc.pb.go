@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	AdminBase_VerifyToken_FullMethodName     = "/adminbase.v1.AdminBase/VerifyToken"
-	AdminBase_GetUser_FullMethodName         = "/adminbase.v1.AdminBase/GetUser"
-	AdminBase_ListUsers_FullMethodName       = "/adminbase.v1.AdminBase/ListUsers"
+	AdminBase_GetAccount_FullMethodName      = "/adminbase.v1.AdminBase/GetAccount"
+	AdminBase_ListAccounts_FullMethodName    = "/adminbase.v1.AdminBase/ListAccounts"
 	AdminBase_ListRoles_FullMethodName       = "/adminbase.v1.AdminBase/ListRoles"
 	AdminBase_ListPermissions_FullMethodName = "/adminbase.v1.AdminBase/ListPermissions"
 	AdminBase_ListTenants_FullMethodName     = "/adminbase.v1.AdminBase/ListTenants"
@@ -34,21 +34,21 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// AdminBase 暴露基础管理能力：令牌校验、用户/角色/权限/租户查询与权限判定。
+// AdminBase 暴露基础管理能力：令牌校验、账户/角色/权限/租户查询与权限判定。
 type AdminBaseClient interface {
-	// VerifyToken 校验用户令牌并返回主体信息，供其它微服务做鉴权。
+	// VerifyToken 校验账户令牌并返回主体信息，供其它微服务做鉴权。
 	VerifyToken(ctx context.Context, in *VerifyTokenRequest, opts ...grpc.CallOption) (*VerifyTokenResponse, error)
-	// GetUser 按 ID 查询用户。
-	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
-	// ListUsers 分页查询用户。
-	ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResponse, error)
+	// GetAccount 按 ID 查询账户。
+	GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error)
+	// ListAccounts 分页查询账户。
+	ListAccounts(ctx context.Context, in *ListAccountsRequest, opts ...grpc.CallOption) (*ListAccountsResponse, error)
 	// ListRoles 分页查询角色。
 	ListRoles(ctx context.Context, in *ListRolesRequest, opts ...grpc.CallOption) (*ListRolesResponse, error)
 	// ListPermissions 返回权限树。
 	ListPermissions(ctx context.Context, in *ListPermissionsRequest, opts ...grpc.CallOption) (*ListPermissionsResponse, error)
 	// ListTenants 分页查询租户。
 	ListTenants(ctx context.Context, in *ListTenantsRequest, opts ...grpc.CallOption) (*ListTenantsResponse, error)
-	// HasPermission 判断某用户是否拥有指定权限码。
+	// HasPermission 判断某账户是否拥有指定权限码。
 	HasPermission(ctx context.Context, in *HasPermissionRequest, opts ...grpc.CallOption) (*HasPermissionResponse, error)
 }
 
@@ -70,20 +70,20 @@ func (c *adminBaseClient) VerifyToken(ctx context.Context, in *VerifyTokenReques
 	return out, nil
 }
 
-func (c *adminBaseClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
+func (c *adminBaseClient) GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetUserResponse)
-	err := c.cc.Invoke(ctx, AdminBase_GetUser_FullMethodName, in, out, cOpts...)
+	out := new(GetAccountResponse)
+	err := c.cc.Invoke(ctx, AdminBase_GetAccount_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *adminBaseClient) ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResponse, error) {
+func (c *adminBaseClient) ListAccounts(ctx context.Context, in *ListAccountsRequest, opts ...grpc.CallOption) (*ListAccountsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListUsersResponse)
-	err := c.cc.Invoke(ctx, AdminBase_ListUsers_FullMethodName, in, out, cOpts...)
+	out := new(ListAccountsResponse)
+	err := c.cc.Invoke(ctx, AdminBase_ListAccounts_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -134,21 +134,21 @@ func (c *adminBaseClient) HasPermission(ctx context.Context, in *HasPermissionRe
 // All implementations must embed UnimplementedAdminBaseServer
 // for forward compatibility.
 //
-// AdminBase 暴露基础管理能力：令牌校验、用户/角色/权限/租户查询与权限判定。
+// AdminBase 暴露基础管理能力：令牌校验、账户/角色/权限/租户查询与权限判定。
 type AdminBaseServer interface {
-	// VerifyToken 校验用户令牌并返回主体信息，供其它微服务做鉴权。
+	// VerifyToken 校验账户令牌并返回主体信息，供其它微服务做鉴权。
 	VerifyToken(context.Context, *VerifyTokenRequest) (*VerifyTokenResponse, error)
-	// GetUser 按 ID 查询用户。
-	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
-	// ListUsers 分页查询用户。
-	ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error)
+	// GetAccount 按 ID 查询账户。
+	GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error)
+	// ListAccounts 分页查询账户。
+	ListAccounts(context.Context, *ListAccountsRequest) (*ListAccountsResponse, error)
 	// ListRoles 分页查询角色。
 	ListRoles(context.Context, *ListRolesRequest) (*ListRolesResponse, error)
 	// ListPermissions 返回权限树。
 	ListPermissions(context.Context, *ListPermissionsRequest) (*ListPermissionsResponse, error)
 	// ListTenants 分页查询租户。
 	ListTenants(context.Context, *ListTenantsRequest) (*ListTenantsResponse, error)
-	// HasPermission 判断某用户是否拥有指定权限码。
+	// HasPermission 判断某账户是否拥有指定权限码。
 	HasPermission(context.Context, *HasPermissionRequest) (*HasPermissionResponse, error)
 	mustEmbedUnimplementedAdminBaseServer()
 }
@@ -163,11 +163,11 @@ type UnimplementedAdminBaseServer struct{}
 func (UnimplementedAdminBaseServer) VerifyToken(context.Context, *VerifyTokenRequest) (*VerifyTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method VerifyToken not implemented")
 }
-func (UnimplementedAdminBaseServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetUser not implemented")
+func (UnimplementedAdminBaseServer) GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAccount not implemented")
 }
-func (UnimplementedAdminBaseServer) ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListUsers not implemented")
+func (UnimplementedAdminBaseServer) ListAccounts(context.Context, *ListAccountsRequest) (*ListAccountsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAccounts not implemented")
 }
 func (UnimplementedAdminBaseServer) ListRoles(context.Context, *ListRolesRequest) (*ListRolesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRoles not implemented")
@@ -220,38 +220,38 @@ func _AdminBase_VerifyToken_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AdminBase_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserRequest)
+func _AdminBase_GetAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AdminBaseServer).GetUser(ctx, in)
+		return srv.(AdminBaseServer).GetAccount(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AdminBase_GetUser_FullMethodName,
+		FullMethod: AdminBase_GetAccount_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminBaseServer).GetUser(ctx, req.(*GetUserRequest))
+		return srv.(AdminBaseServer).GetAccount(ctx, req.(*GetAccountRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AdminBase_ListUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListUsersRequest)
+func _AdminBase_ListAccounts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAccountsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AdminBaseServer).ListUsers(ctx, in)
+		return srv.(AdminBaseServer).ListAccounts(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AdminBase_ListUsers_FullMethodName,
+		FullMethod: AdminBase_ListAccounts_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminBaseServer).ListUsers(ctx, req.(*ListUsersRequest))
+		return srv.(AdminBaseServer).ListAccounts(ctx, req.(*ListAccountsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -340,12 +340,12 @@ var AdminBase_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminBase_VerifyToken_Handler,
 		},
 		{
-			MethodName: "GetUser",
-			Handler:    _AdminBase_GetUser_Handler,
+			MethodName: "GetAccount",
+			Handler:    _AdminBase_GetAccount_Handler,
 		},
 		{
-			MethodName: "ListUsers",
-			Handler:    _AdminBase_ListUsers_Handler,
+			MethodName: "ListAccounts",
+			Handler:    _AdminBase_ListAccounts_Handler,
 		},
 		{
 			MethodName: "ListRoles",

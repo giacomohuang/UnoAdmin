@@ -12,21 +12,21 @@ import { useAppSession } from '../app-session'
 const router = useRouter()
 const session = useAppSession()
 
-const form = ref({ username: 'chen.yu', password: 'admin123' })
+const form = ref({ accountName: 'chen.yu', password: 'admin123' })
 const formRef = ref<InstanceType<typeof Form>>()
 const error = ref('')
 const loading = ref(false)
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入账号' }],
+  accountName: [{ required: true, message: '请输入账号' }],
   password: [{ required: true, message: '请输入密码' }]
 }
 
 /** 演示账号按客户形态区分，便于体验集团与单体两种租户。 */
 const demoAccounts = [
-  { username: 'lin.wei', label: '平台运营管理员', note: '可跨租户切换' },
-  { username: 'chen.yu', label: '集团管理员', note: '汉唐控股 · 全部主体' },
-  { username: 'zhao.ming', label: '主体管理员', note: '仅华东公司' },
-  { username: 'li.na', label: '单体企业管理员', note: '明远科技' }
+  { accountName: 'lin.wei', label: '平台运营管理员', note: '可跨租户切换' },
+  { accountName: 'chen.yu', label: '集团管理员', note: '汉唐控股 · 全部主体' },
+  { accountName: 'zhao.ming', label: '主体管理员', note: '仅华东公司' },
+  { accountName: 'li.na', label: '单体企业管理员', note: '明远科技' }
 ]
 
 /** 使用账号密码建立真实会话，再进入受路由守卫保护的工作台。 */
@@ -36,7 +36,7 @@ async function enterWorkspace() {
   if (!valid) return
   loading.value = true
   try {
-    await session.signIn({ username: form.value.username.trim(), password: form.value.password })
+    await session.signIn({ accountName: form.value.accountName.trim(), password: form.value.password })
     await router.push('/dashboard')
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '登录失败，请检查后端服务与账号密码'
@@ -46,8 +46,8 @@ async function enterWorkspace() {
 }
 
 /** 点击演示账号时填入表单，仍需用户主动提交。 */
-function useDemo(username: string) {
-  form.value.username = username
+function useDemo(accountName: string) {
+  form.value.accountName = accountName
   form.value.password = 'admin123'
 }
 </script>
@@ -83,8 +83,8 @@ function useDemo(username: string) {
         </header>
 
         <Form ref="formRef" :model="form" :rules="rules" label-position="top" size="md" item-gap="14px" @submit.prevent="enterWorkspace">
-          <FormItem label="账号" prop="username">
-            <Input v-model="form.username" prefix-icon="i-lucide:user" autocomplete="username" placeholder="请输入账号" />
+          <FormItem label="账号" prop="accountName">
+            <Input v-model="form.accountName" prefix-icon="i-lucide:user" autocomplete="username" placeholder="请输入账号" />
           </FormItem>
           <FormItem label="密码" prop="password">
             <Input v-model="form.password" type="password" show-password prefix-icon="i-lucide:lock" autocomplete="current-password" placeholder="请输入密码" @keyup.enter="enterWorkspace" />
@@ -102,13 +102,13 @@ function useDemo(username: string) {
           <div class="grid gap-2 sm:grid-cols-2">
             <button
               v-for="item in demoAccounts"
-              :key="item.username"
+              :key="item.accountName"
               type="button"
               class="flex flex-col items-start gap-0.5 rounded-lg border border-light px-3 py-2 text-left transition-colors hover:(border-brand bg-brand-50/60)"
-              @click="useDemo(item.username)"
+              @click="useDemo(item.accountName)"
             >
               <span class="text-sm font-500">{{ item.label }}</span>
-              <span class="text-xs text-tertiary">{{ item.username }} · {{ item.note }}</span>
+              <span class="text-xs text-tertiary">{{ item.accountName }} · {{ item.note }}</span>
             </button>
           </div>
         </div>

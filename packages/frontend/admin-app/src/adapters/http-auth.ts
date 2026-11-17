@@ -30,7 +30,7 @@ export function createHttpAuth(client: ApiClient, store: TokenStore): AuthPort {
 
   return {
     async signIn(credentials?: SignInCredentials) {
-      if (!credentials?.username || !credentials?.password) {
+      if (!credentials?.accountName || !credentials?.password) {
         throw new Error('请输入账号和密码')
       }
 

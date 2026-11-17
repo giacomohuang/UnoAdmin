@@ -30,7 +30,7 @@ function loginResponse(): AuthSession & { token: string; refreshToken: string } 
     refreshToken: 'refresh-1',
     account: {
       id: 'acc-001' as AccountId,
-      username: 'chen.yu',
+      accountName: 'chen.yu',
       displayName: '陈宇',
       email: 'chen.yu@example.com',
       phone: '13800000002',
@@ -273,8 +273,8 @@ describe('http auth adapter', () => {
     }
     const auth = createHttpAuth(client, store)
 
-    const session = await auth.signIn({ username: 'chen.yu', password: 'admin123' })
-    expect(session.account.username).toBe('chen.yu')
+    const session = await auth.signIn({ accountName: 'chen.yu', password: 'admin123' })
+    expect(session.account.accountName).toBe('chen.yu')
     expect(session.currentLegalEntityId).toBe('le-hq')
     expect(store.getAccess()).toBe('access-1')
     expect(store.getRefresh()).toBe('refresh-1')

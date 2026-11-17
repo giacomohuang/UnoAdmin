@@ -97,7 +97,7 @@ export interface SaveOrg {
 
 /** 新建或更新账户允许提交的字段。 */
 export interface SaveAccount {
-  username: string
+  accountName: string
   displayName: string
   password?: string
   email: string

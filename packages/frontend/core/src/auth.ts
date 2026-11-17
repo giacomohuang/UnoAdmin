@@ -19,7 +19,7 @@ export interface AuthSession {
 
 /** 真实认证后端接受的凭据。 */
 export interface SignInCredentials {
-  username: string
+  accountName: string
   password: string
 }
 

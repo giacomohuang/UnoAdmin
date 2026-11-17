@@ -15,24 +15,24 @@ import (
 func fixtures() (*auth.Service, *testutil.TokenProvider, *testutil.RefreshStore) {
 	accounts := testutil.NewAccountRepo(
 		domain.Account{
-			ID: "acc-platform", Username: "lin.wei", PasswordHash: "hash:secret",
+			ID: "acc-platform", AccountName: "lin.wei", PasswordHash: "hash:secret",
 			DisplayName: "林薇", Status: domain.UserActive, PlatformAdmin: true,
 			DataScope: domain.DataScopeTenant, RoleIDs: []string{"role-platform"},
 		},
 		domain.Account{
-			ID: "acc-group", Username: "chen.yu", PasswordHash: "hash:secret",
+			ID: "acc-group", AccountName: "chen.yu", PasswordHash: "hash:secret",
 			DisplayName: "陈宇", Status: domain.UserActive, TenantID: "tenant-holding",
 			DataScope: domain.DataScopeTenant, RoleIDs: []string{"role-group-admin"},
 			LegalEntityIDs: []string{"le-hq"},
 		},
 		domain.Account{
-			ID: "acc-east", Username: "zhao.ming", PasswordHash: "hash:secret",
+			ID: "acc-east", AccountName: "zhao.ming", PasswordHash: "hash:secret",
 			DisplayName: "赵明", Status: domain.UserActive, TenantID: "tenant-holding",
 			DataScope: domain.DataScopeEntity, RoleIDs: []string{"role-entity-admin"},
 			LegalEntityIDs: []string{"le-east"},
 		},
 		domain.Account{
-			ID: "acc-disabled", Username: "disabled", PasswordHash: "hash:secret",
+			ID: "acc-disabled", AccountName: "disabled", PasswordHash: "hash:secret",
 			DisplayName: "禁用账户", Status: domain.UserDisabled, TenantID: "tenant-holding",
 		},
 	)
@@ -130,7 +130,7 @@ func TestRestoreReloadsPermissionsAndKeepsContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Restore() error = %v", err)
 	}
-	if session.Account.Username != "chen.yu" || len(session.Permissions) != 2 {
+	if session.Account.AccountName != "chen.yu" || len(session.Permissions) != 2 {
 		t.Fatalf("restored session = %+v, want fresh group admin session", session)
 	}
 	// 令牌中的主体在可见范围内时应被沿用。

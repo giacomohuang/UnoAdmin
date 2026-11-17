@@ -70,7 +70,7 @@ async function handleSelect(item: unknown) {
         <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-sm font-600 text-white">{{ initial }}</span>
         <div class="min-w-0">
           <strong class="block truncate text-sm">{{ account?.displayName }}</strong>
-          <span class="block truncate text-xs text-tertiary">{{ account?.username }} · {{ account?.email || '未填写邮箱' }}</span>
+          <span class="block truncate text-xs text-tertiary">{{ account?.accountName }} · {{ account?.email || '未填写邮箱' }}</span>
           <span class="mt-0.5 block truncate text-[11px] text-tertiary">{{ roleLabel }}</span>
         </div>
       </div>

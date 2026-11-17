@@ -48,7 +48,7 @@ const formError = ref('')
 const editing = ref<Account | null>(null)
 const formRef = ref<InstanceType<typeof Form>>()
 const form = reactive<SaveAccount>({
-  username: '',
+  accountName: '',
   displayName: '',
   password: '',
   email: '',
@@ -68,7 +68,7 @@ const roleOptions = computed(() => roles.value.map((role) => ({
 })))
 
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入登录账号' }],
+  accountName: [{ required: true, message: '请输入登录账号' }],
   displayName: [{ required: true, message: '请输入姓名' }]
 }
 
@@ -79,7 +79,7 @@ const scopeOptions = [
 ]
 
 const columns = computed<TableColumn<Account>[]>(() => [
-  { key: 'username', title: '账户', minWidth: 190 },
+  { key: 'accountName', title: '账户', minWidth: 190 },
   { key: 'legalEntityNames', title: '经营主体', minWidth: 220 },
   { key: 'dataScope', title: '数据范围', width: 120 },
   { key: 'roleNames', title: '角色', minWidth: 170 },
@@ -160,7 +160,7 @@ async function loadChoices() {
 async function open(record?: Account) {
   editing.value = record ?? null
   Object.assign(form, {
-    username: record?.username ?? '',
+    accountName: record?.accountName ?? '',
     displayName: record?.displayName ?? '',
     password: '',
     email: record?.email ?? '',
@@ -236,7 +236,7 @@ onMounted(load)
     <Skeleton v-if="!ready && loading" variant="table" :rows="8" :columns="6" />
     <template v-else>
       <Table :rows="items" :columns="columns" row-key="id" min-width="1040px" empty-text="暂无账户" :aria-busy="loading">
-        <template #cell-username="{ row }">
+        <template #cell-accountName="{ row }">
           <div class="flex min-w-0 items-center gap-2">
             <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-600">{{ row.displayName.slice(0, 1) }}</span>
             <div class="flex min-w-0 flex-col">
@@ -244,7 +244,7 @@ onMounted(load)
                 {{ row.displayName }}
                 <Tag v-if="row.platformAdmin" color="purple" size="sm">平台</Tag>
               </span>
-              <span class="truncate text-xs text-tertiary">{{ row.username }}<template v-if="row.email"> · {{ row.email }}</template></span>
+              <span class="truncate text-xs text-tertiary">{{ row.accountName }}<template v-if="row.email"> · {{ row.email }}</template></span>
             </div>
           </div>
         </template>
@@ -290,8 +290,8 @@ onMounted(load)
           <section>
             <h3 class="mb-3 mt-0 text-sm font-600">账号信息</h3>
             <div class="grid gap-x-4 sm:grid-cols-2">
-              <FormItem label="登录账号" prop="username" required>
-                <Input v-model="form.username" :disabled="Boolean(editing)" :maxlength="64" autocomplete="off" placeholder="例如：chen.yu" />
+              <FormItem label="登录账号" prop="accountName" required>
+                <Input v-model="form.accountName" :disabled="Boolean(editing)" :maxlength="64" autocomplete="off" placeholder="例如：chen.yu" />
               </FormItem>
               <FormItem label="姓名" prop="displayName" required>
                 <Input v-model="form.displayName" :maxlength="50" autocomplete="off" placeholder="例如：陈宇" />

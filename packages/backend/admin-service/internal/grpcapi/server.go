@@ -20,8 +20,6 @@ type verifier interface {
 }
 
 // adminAPI 是 gRPC 层需要的查询能力。
-//
-// 对外协议仍使用 User 命名（其它微服务已按此对接），内部实现已统一为 Account。
 type adminAPI interface {
 	GetAccount(ctx context.Context, id string) (domain.Account, error)
 	ListAccounts(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Account], error)
@@ -47,7 +45,7 @@ func (s *Server) Register(server *grpc.Server) {
 	pb.RegisterAdminBaseServer(server, s)
 }
 
-// VerifyToken 校验用户令牌并返回实时权限，供其它微服务鉴权。
+// VerifyToken 校验账户令牌并返回实时权限，供其它微服务鉴权。
 func (s *Server) VerifyToken(ctx context.Context, req *pb.VerifyTokenRequest) (*pb.VerifyTokenResponse, error) {
 	principal, err := s.verifier.Verify(ctx, req.GetToken())
 	if err != nil {
@@ -55,23 +53,23 @@ func (s *Server) VerifyToken(ctx context.Context, req *pb.VerifyTokenRequest) (*
 	}
 	return &pb.VerifyTokenResponse{
 		Valid:       true,
-		UserId:      principal.AccountID,
+		AccountId:   principal.AccountID,
 		TenantId:    principal.TenantID,
 		Permissions: principal.Permissions,
 	}, nil
 }
 
-// GetUser 按 ID 返回账户（对外沿用 User 协议名）。
-func (s *Server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+// GetAccount 按 ID 返回账户。
+func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
 	account, err := s.admin.GetAccount(ctx, req.GetId())
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &pb.GetUserResponse{User: toProtoUser(account)}, nil
+	return &pb.GetAccountResponse{Account: toProtoAccount(account)}, nil
 }
 
-// ListUsers 分页返回账户，支持租户范围过滤。
-func (s *Server) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResponse, error) {
+// ListAccounts 分页返回账户，支持租户范围过滤。
+func (s *Server) ListAccounts(ctx context.Context, req *pb.ListAccountsRequest) (*pb.ListAccountsResponse, error) {
 	principal, err := s.principal(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
@@ -83,11 +81,11 @@ func (s *Server) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.L
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	items := make([]*pb.User, 0, len(page.Items))
+	items := make([]*pb.Account, 0, len(page.Items))
 	for _, account := range page.Items {
-		items = append(items, toProtoUser(account))
+		items = append(items, toProtoAccount(account))
 	}
-	return &pb.ListUsersResponse{Items: items, Total: int32(page.Total)}, nil
+	return &pb.ListAccountsResponse{Items: items, Total: int32(page.Total)}, nil
 }
 
 // ListRoles 分页返回角色。

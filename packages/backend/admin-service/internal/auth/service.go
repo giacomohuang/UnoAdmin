@@ -40,8 +40,8 @@ func NewService(
 }
 
 // SignIn 校验账号密码，签发访问令牌并把刷新令牌存入 Redis。
-func (s *Service) SignIn(ctx context.Context, username string, password string) (domain.TokenPair, domain.AuthSession, error) {
-	account, err := s.accounts.GetByUsername(ctx, username)
+func (s *Service) SignIn(ctx context.Context, accountName string, password string) (domain.TokenPair, domain.AuthSession, error) {
+	account, err := s.accounts.GetByAccountName(ctx, accountName)
 	if errors.Is(err, domain.ErrNotFound) {
 		return domain.TokenPair{}, domain.AuthSession{}, domain.ErrUnauthorized
 	}

@@ -10,7 +10,7 @@ import { installRouterGuards } from '../router/guards'
 const sessionFixture: AuthSession = {
   account: {
     id: 'acc-001' as AccountId,
-    username: 'chen.yu',
+    accountName: 'chen.yu',
     displayName: '陈宇',
     email: 'chen.yu@example.com',
     phone: '',
@@ -102,7 +102,7 @@ describe('generated application route contract', () => {
     expect(session.state.account).toBeNull()
 
     await session.signIn()
-    expect(session.state.account?.username).toBe('chen.yu')
+    expect(session.state.account?.accountName).toBe('chen.yu')
     expect(session.state.currentLegalEntity?.name).toBe('集团总部')
   })
 

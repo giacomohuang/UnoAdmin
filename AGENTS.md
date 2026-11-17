@@ -20,6 +20,17 @@
 - **Account（账户）**：管理端登录身份，不再使用 `User` 命名。
 - **数据边界由后端强制**：`tenantId` / `legalEntityId` 只能来自令牌，前端不得自行推导或透传不可信范围。
 
+## 后端约定
+
+- gRPC 契约在 `api/proto/adminbase/v1/adminbase.proto`，对外命名同样使用 Account，不引入 User；修改 proto 后必须重新生成 `gen/adminbase/v1`：
+
+  ```sh
+  cd packages/backend/admin-service
+  protoc --go_out=gen --go_opt=module=github.com/unoadmin/admin-service/gen \
+    --go-grpc_out=gen --go-grpc_opt=module=github.com/unoadmin/admin-service/gen \
+    -Iapi/proto api/proto/adminbase/v1/adminbase.proto
+  ```
+
 ## 前端约定
 
 - UI 组件统一使用 `@mcistudio/unoui-vue`，禁止引入其他组件库或自建基础控件。

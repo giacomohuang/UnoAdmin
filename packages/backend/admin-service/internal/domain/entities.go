@@ -113,7 +113,7 @@ type OrgUnit struct {
 //   - DataScopeSelf：仅可见本人所属组织及下级（部门负责人）。
 type Account struct {
 	ID               string    `json:"id" bson:"_id"`
-	Username         string    `json:"username" bson:"username"`
+	AccountName      string    `json:"accountName" bson:"accountName"`
 	PasswordHash     string    `json:"-" bson:"passwordHash"`
 	DisplayName      string    `json:"displayName" bson:"displayName"`
 	Email            string    `json:"email" bson:"email"`

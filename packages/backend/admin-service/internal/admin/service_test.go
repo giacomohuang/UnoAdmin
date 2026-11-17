@@ -22,9 +22,9 @@ func fixtures() (*admin.Service, *testutil.TenantRepo, *testutil.LegalEntityRepo
 		domain.LegalEntity{ID: "le-mingyuan", TenantID: "tenant-mingyuan", Type: domain.LegalEntityTypeCompany, Name: "明远科技", Code: "MY", Status: domain.TenantActive},
 	)
 	accounts := testutil.NewAccountRepo(
-		domain.Account{ID: "acc-group", Username: "chen.yu", DisplayName: "陈宇", Status: domain.UserActive, TenantID: "tenant-holding", DataScope: domain.DataScopeTenant, RoleIDs: []string{"role-group"}, LegalEntityIDs: []string{"le-hq"}},
-		domain.Account{ID: "acc-east", Username: "zhao.ming", DisplayName: "赵明", Status: domain.UserActive, TenantID: "tenant-holding", DataScope: domain.DataScopeEntity, RoleIDs: []string{"role-entity"}, LegalEntityIDs: []string{"le-east"}},
-		domain.Account{ID: "acc-solo", Username: "li.na", DisplayName: "李娜", Status: domain.UserActive, TenantID: "tenant-mingyuan", DataScope: domain.DataScopeTenant},
+		domain.Account{ID: "acc-group", AccountName: "chen.yu", DisplayName: "陈宇", Status: domain.UserActive, TenantID: "tenant-holding", DataScope: domain.DataScopeTenant, RoleIDs: []string{"role-group"}, LegalEntityIDs: []string{"le-hq"}},
+		domain.Account{ID: "acc-east", AccountName: "zhao.ming", DisplayName: "赵明", Status: domain.UserActive, TenantID: "tenant-holding", DataScope: domain.DataScopeEntity, RoleIDs: []string{"role-entity"}, LegalEntityIDs: []string{"le-east"}},
+		domain.Account{ID: "acc-solo", AccountName: "li.na", DisplayName: "李娜", Status: domain.UserActive, TenantID: "tenant-mingyuan", DataScope: domain.DataScopeTenant},
 	)
 	roles := testutil.NewRoleRepo(
 		domain.Role{ID: "role-group", TenantID: "tenant-holding", Name: "集团管理员", Code: "GROUP_ADMIN", Status: domain.TenantActive, DataScope: domain.DataScopeTenant, PermissionCodes: []string{"account:view"}},
@@ -212,7 +212,7 @@ func TestSaveAccountRejectsForeignLegalEntity(t *testing.T) {
 
 	// 集团管理员不能把账户授权到其它租户的主体。
 	if _, err := svc.SaveAccount(context.Background(), groupPrincipal(), admin.AccountInput{
-		Username: "new.user", DisplayName: "新同事", Password: "password123",
+		AccountName: "new.user", DisplayName: "新同事", Password: "password123",
 		DataScope: domain.DataScopeEntity, LegalEntityIDs: []string{"le-mingyuan"},
 	}); err == nil {
 		t.Fatal("SaveAccount() should reject an entity from another tenant")
@@ -235,13 +235,13 @@ func TestEntityOperatorCannotGrantForeignEntity(t *testing.T) {
 	svc, _, _ := fixtures()
 
 	if _, err := svc.SaveAccount(context.Background(), entityPrincipal(), admin.AccountInput{
-		Username: "new.user", DisplayName: "新同事", Password: "password123",
+		AccountName: "new.user", DisplayName: "新同事", Password: "password123",
 		DataScope: domain.DataScopeEntity, LegalEntityIDs: []string{"le-hq"},
 	}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("SaveAccount(foreign entity) error = %v, want ErrForbidden", err)
 	}
 	if _, err := svc.SaveAccount(context.Background(), entityPrincipal(), admin.AccountInput{
-		Username: "new.user", DisplayName: "新同事", Password: "password123",
+		AccountName: "new.user", DisplayName: "新同事", Password: "password123",
 		DataScope: domain.DataScopeTenant, LegalEntityIDs: []string{"le-east"},
 	}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("SaveAccount(tenant scope) error = %v, want ErrForbidden", err)
