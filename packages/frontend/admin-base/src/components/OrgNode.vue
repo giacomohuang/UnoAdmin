@@ -48,7 +48,7 @@
           @keydown.enter.stop.prevent="selectNode(entry.item)"
           @keydown.space.stop.prevent="selectNode(entry.item)"
         >
-          <span v-if="ghost && isGhostRoot" data-org-ghost-badge class="pointer-events-none absolute -right-2 -top-3 z6 inline-flex h-6 items-center gap-1 rounded-full border-2 border-white/85 bg-brand px-2 text-[11px] font-700 tracking-wide text-white">
+          <span v-if="ghost && isGhostRoot" data-org-ghost-badge class="pointer-events-none absolute -right-2 -top-3 z6 inline-flex h-6 items-center gap-1 rounded-full border-2 border-white/85 bg-brand px-2 text-xs font-700 tracking-wide text-white">
             <span class="i-lucide:move size-3"></span>
           </span>
 
