@@ -19,7 +19,8 @@ type legacyRefField struct {
 
 // legacyCollections 列出需要迁移主键的集合及其引用字段。
 //
-// token_blacklist 的 tokenId 不是文档主键，因此不参与迁移。
+// 只包含当前仓储层仍在读写的集合；token_blacklist 的 tokenId 不是文档主键，
+// 因此不参与迁移。
 var legacyCollections = []struct {
 	name   string
 	fields []legacyRefField
@@ -30,11 +31,6 @@ var legacyCollections = []struct {
 	{name: "accounts", fields: []legacyRefField{{name: "tenantId"}, {name: "legalEntityIds", array: true}, {name: "orgIds", array: true}, {name: "roleIds", array: true}}},
 	{name: "roles", fields: []legacyRefField{{name: "tenantId"}, {name: "legalEntityId"}}},
 	{name: "permissions", fields: []legacyRefField{{name: "parentId"}}},
-	// users 是早期版本的账户集合，已由 accounts 取代；仅统一主键类型，保留历史数据。
-	{name: "users", fields: nil},
-	// demo_* 属于已移除的演示模块，保留数据但统一主键类型，避免库里残留字符串主键。
-	{name: "demo_overview", fields: nil},
-	{name: "demo_records", fields: nil},
 }
 
 // migrateLegacyStringIDs 把历史字符串主键迁移为 ObjectId，并同步转换引用字段。

@@ -5,6 +5,7 @@
 .pnpm-store/
 .runtime/
 .pids/
+.backup/
 .github/
 .DS_Store
 node_modules/
