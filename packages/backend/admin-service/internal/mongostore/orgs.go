@@ -153,6 +153,22 @@ func (r *OrgRepository) Update(ctx context.Context, unit domain.OrgUnit) (*domai
 	return &updated, nil
 }
 
+// Delete 删除指定组织节点。
+func (r *OrgRepository) Delete(ctx context.Context, id string) error {
+	oid, err := parseObjectID(id)
+	if err != nil || oid.IsZero() {
+		return domain.ErrNotFound
+	}
+	result, err := r.coll.DeleteOne(ctx, bson.D{{Key: "_id", Value: oid}})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 // find 执行查询并转换为领域实体。
 func (r *OrgRepository) find(ctx context.Context, filter bson.D, opts ...options.Lister[options.FindOptions]) ([]domain.OrgUnit, error) {
 	cursor, err := r.coll.Find(ctx, filter, opts...)

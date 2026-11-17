@@ -60,6 +60,7 @@ func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) *gi
 	secured.GET("/orgs", requirePermission("org:view"), s.handleListOrgs)
 	secured.POST("/orgs", requirePermission("org:edit"), s.handleCreateOrg)
 	secured.PUT("/orgs/:id", requirePermission("org:edit"), s.handleUpdateOrg)
+	secured.DELETE("/orgs/:id", requirePermission("org:edit"), s.handleDeleteOrg)
 
 	// 账户（管理端登录身份）。
 	secured.GET("/accounts", requirePermission("account:view"), s.handleListAccounts)

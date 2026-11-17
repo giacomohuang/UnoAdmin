@@ -19,6 +19,7 @@ type adminServiceAPI interface {
 	SaveLegalEntity(ctx context.Context, principal *domain.Principal, input admin.LegalEntityInput) (*domain.LegalEntity, error)
 	ListOrgs(ctx context.Context, principal *domain.Principal, entityID string) ([]domain.OrgUnit, error)
 	SaveOrg(ctx context.Context, principal *domain.Principal, input admin.OrgInput) (*domain.OrgUnit, error)
+	DeleteOrg(ctx context.Context, principal *domain.Principal, id string) error
 	ListAccounts(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Account], error)
 	SaveAccount(ctx context.Context, principal *domain.Principal, input admin.AccountInput) (*domain.Account, error)
 	UpdateAccountStatus(ctx context.Context, principal *domain.Principal, id string, status string) error
@@ -219,6 +220,20 @@ func (s *Server) handleUpdateOrg(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// handleDeleteOrg 删除组织节点。
+func (s *Server) handleDeleteOrg(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, domain.ErrUnauthorized)
+		return
+	}
+	if err := s.admin.DeleteOrg(c.Request.Context(), principal, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // handleListAccounts 分页返回账户。

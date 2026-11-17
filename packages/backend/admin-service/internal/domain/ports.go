@@ -33,6 +33,7 @@ type OrgRepository interface {
 	GetByIDs(ctx context.Context, ids []string) ([]OrgUnit, error)
 	Create(ctx context.Context, unit OrgUnit) (*OrgUnit, error)
 	Update(ctx context.Context, unit OrgUnit) (*OrgUnit, error)
+	Delete(ctx context.Context, id string) error
 }
 
 // AccountRepository 持久化管理端账户，并提供关联角色与主体的查询能力。

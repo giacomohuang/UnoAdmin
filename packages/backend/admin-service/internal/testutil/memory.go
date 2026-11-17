@@ -519,6 +519,15 @@ func (r *OrgRepo) Update(_ context.Context, unit domain.OrgUnit) (*domain.OrgUni
 	return &unit, nil
 }
 
+// Delete 删除组织节点。
+func (r *OrgRepo) Delete(_ context.Context, id string) error {
+	if _, ok := r.Units[id]; !ok {
+		return domain.ErrNotFound
+	}
+	delete(r.Units, id)
+	return nil
+}
+
 // TokenProvider 是令牌服务的测试替身，记录签发内容并按要求返回校验结果。
 type TokenProvider struct {
 	Issued []domain.Claims

@@ -1,4 +1,4 @@
-import type { AccountId, AuthSession, LegalEntityId, TenantId } from '@unoadmin/core'
+import type { AccountId, AuthSession, LegalEntityId, OrgId, TenantId } from '@unoadmin/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ApiError, createApiClient, type ApiClient } from '../adapters/api-client'
@@ -322,5 +322,8 @@ describe('http services adapter', () => {
       method: 'PATCH',
       body: '{"status":"disabled"}'
     })
+
+    await services.base.orgs.remove('org-001' as OrgId)
+    expect(request).toHaveBeenCalledWith('orgs/org-001', { method: 'DELETE' })
   })
 })

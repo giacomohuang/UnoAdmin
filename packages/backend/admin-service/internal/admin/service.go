@@ -442,6 +442,22 @@ func (s *Service) SaveOrg(ctx context.Context, principal *domain.Principal, inpu
 	return s.orgs.Update(ctx, current)
 }
 
+// DeleteOrg 删除当前管理范围内的组织节点。
+func (s *Service) DeleteOrg(ctx context.Context, principal *domain.Principal, id string) error {
+	current, err := s.orgs.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	entity, err := s.entities.Get(ctx, current.LegalEntityID)
+	if err != nil {
+		return err
+	}
+	if !domain.CanAccessTenant(principal, entity.TenantID) || !domain.CanAccessEntity(principal, entity.ID) {
+		return domain.ErrForbidden
+	}
+	return s.orgs.Delete(ctx, id)
+}
+
 // ListAccounts 分页查询账户，并填充角色名与主体名。
 func (s *Service) ListAccounts(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Account], error) {
 	query.TenantID = s.scopeTenant(principal, query.TenantID)

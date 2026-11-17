@@ -85,7 +85,8 @@ export function createHttpServices(client: ApiClient): AppServices {
         tree: (legalEntityId: string) =>
           client.request<OrgUnit[]>(`orgs?${new URLSearchParams({ legalEntityId }).toString()}`),
         create: (input: SaveOrg) => write<OrgUnit>(client, 'orgs', 'POST', input),
-        update: (id: OrgId, input: SaveOrg) => write<OrgUnit>(client, `orgs/${encodeURIComponent(id)}`, 'PUT', input)
+        update: (id: OrgId, input: SaveOrg) => write<OrgUnit>(client, `orgs/${encodeURIComponent(id)}`, 'PUT', input),
+        remove: (id: OrgId) => client.request<void>(`orgs/${encodeURIComponent(id)}`, { method: 'DELETE' })
       },
       stats: {
         get: () => client.request<AdminStats>('stats')

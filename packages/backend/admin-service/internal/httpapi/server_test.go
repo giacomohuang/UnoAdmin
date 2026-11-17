@@ -83,6 +83,10 @@ func (f *fakeAdmin) SaveOrg(context.Context, *domain.Principal, admin.OrgInput) 
 	return &domain.OrgUnit{ID: "org-001"}, f.err
 }
 
+func (f *fakeAdmin) DeleteOrg(context.Context, *domain.Principal, string) error {
+	return f.err
+}
+
 func (f *fakeAdmin) ListRoles(_ context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Role], error) {
 	f.lastQuery, f.lastPrincipal = query, principal
 	return domain.PageResult[domain.Role]{}, f.err

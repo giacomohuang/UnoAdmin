@@ -57,6 +57,7 @@ export interface OrgService {
   tree(legalEntityId: string): Promise<OrgUnit[]>
   create(input: SaveOrg): Promise<OrgUnit>
   update(id: OrgId, input: SaveOrg): Promise<OrgUnit>
+  remove(id: OrgId): Promise<void>
 }
 
 /** 工作台指标服务契约。 */

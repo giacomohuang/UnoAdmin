@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @unoadmin/admin-app dev",
+    "dev:server": "cd packages/backend/admin-service && go run ./cmd/server",
     "build": "pnpm --filter @unoadmin/admin-app build",
     "typecheck": "pnpm --filter @unoadmin/core type-check && pnpm --filter @unoadmin/admin-base type-check && pnpm --filter @unoadmin/admin-app type-check",
     "test": "pnpm --filter @unoadmin/admin-app test:unit",
