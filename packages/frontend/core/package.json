@@ -6,34 +6,6 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
-    },
-    "./identifiers": {
-      "types": "./src/identifiers.ts",
-      "import": "./src/identifiers.ts"
-    },
-    "./entities": {
-      "types": "./src/entities.ts",
-      "import": "./src/entities.ts"
-    },
-    "./query": {
-      "types": "./src/query.ts",
-      "import": "./src/query.ts"
-    },
-    "./services": {
-      "types": "./src/services.ts",
-      "import": "./src/services.ts"
-    },
-    "./auth": {
-      "types": "./src/auth.ts",
-      "import": "./src/auth.ts"
-    },
-    "./http": {
-      "types": "./src/http.ts",
-      "import": "./src/http.ts"
-    },
-    "./composition": {
-      "types": "./src/composition.ts",
-      "import": "./src/composition.ts"
     }
   },
   "scripts": {
@@ -41,8 +13,5 @@
   },
   "devDependencies": {
     "typescript": "~6.0.0"
-  },
-  "dependencies": {
-    "ky": "^2.2.0"
   }
 }

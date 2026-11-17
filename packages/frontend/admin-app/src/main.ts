@@ -1,5 +1,4 @@
 import { configureUnoUI } from '@mcistudio/unoui-vue/config'
-import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
 import {
@@ -46,7 +45,6 @@ const branding = {
 }
 
 const app = createApp(App)
-app.use(createPinia())
 app.provide(ADMIN_SESSION_KEY, session)
 app.provide(ADMIN_BRANDING_KEY, branding)
 app.provide(ADMIN_MODULES_KEY, modules)

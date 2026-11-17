@@ -339,7 +339,6 @@ func (w *seedWriter) prunePermissions() error {
 	return err
 }
 
-
 // syncRoles 覆盖写入内置角色，租户级角色用空 ObjectId 表示跨主体。
 func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID, eastID bson.ObjectID, now time.Time) error {
 	roles := []struct {

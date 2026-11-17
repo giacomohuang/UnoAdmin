@@ -24,10 +24,12 @@ go run ./cmd/server   # 默认 HTTP :8080、gRPC :9090，需要本地 MongoDB �
 示例地址：
 
 - `/dashboard`：基础管理工作台
-- `/system/users`：基础包用户管理
-- `/system/roles`：基础包角色管理
-- `/system/permissions`：基础包权限管理
-- `/system/tenants`：基础包租户管理
+- `/system/tenants`：租户
+- `/system/entities`：经营主体
+- `/system/organizations`：组织架构
+- `/system/accounts`：账户
+- `/system/roles`：角色
+- `/system/permissions`：权限
 
 ## 常用检查
 
@@ -53,7 +55,7 @@ pnpm --filter @unoadmin/admin-app test:e2e --project=chromium
 PLAYWRIGHT_EXECUTABLE_PATH="/path/to/chromium" pnpm --filter @unoadmin/admin-app test:e2e --project=chromium
 ```
 
-端到端测试会点击登录页按钮调用真实后端，因此需先启动后端与数据库；测试覆盖 package 自动路由、SPA 深链接刷新、登录/登出会话恢复和基础 Layout 渲染。
+端到端测试会通过登录页调用真实后端，因此需先启动后端、数据库与开发服务器；用例覆盖登录进入工作台、权限过滤后的二级导航、深链刷新保持会话、无编辑权限时不渲染新建入口，以及退出登录后的路由守卫拦截。
 
 ## SPA 部署
 

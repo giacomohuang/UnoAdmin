@@ -17,12 +17,6 @@ export interface AuthSession {
   dataScope: DataScope
 }
 
-/** 后端登录/刷新返回的令牌对与会话。 */
-export interface AuthTokenSession extends AuthSession {
-  token: string
-  refreshToken: string
-}
-
 /** 真实认证后端接受的凭据。 */
 export interface SignInCredentials {
   username: string
