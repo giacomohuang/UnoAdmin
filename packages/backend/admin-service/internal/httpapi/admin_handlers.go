@@ -25,6 +25,9 @@ type adminServiceAPI interface {
 	ListRoles(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Role], error)
 	SaveRole(ctx context.Context, principal *domain.Principal, input admin.RoleInput) (*domain.Role, error)
 	ListPermissions(ctx context.Context) ([]domain.Permission, error)
+	SavePermission(ctx context.Context, principal *domain.Principal, input admin.PermissionInput) (*domain.Permission, error)
+	ReorderPermissions(ctx context.Context, principal *domain.Principal, input admin.PermissionReorderInput) ([]domain.Permission, error)
+	DeletePermission(ctx context.Context, principal *domain.Principal, id string) error
 	Stats(ctx context.Context, principal *domain.Principal) (map[string]int, error)
 }
 
@@ -357,6 +360,81 @@ func (s *Server) handleListPermissions(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// handleCreatePermission 新增权限节点。
+func (s *Server) handleCreatePermission(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, domain.ErrUnauthorized)
+		return
+	}
+	var input admin.PermissionInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, domain.ErrInvalid)
+		return
+	}
+	result, err := s.admin.SavePermission(c.Request.Context(), principal, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+// handleUpdatePermission 更新权限节点。
+func (s *Server) handleUpdatePermission(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, domain.ErrUnauthorized)
+		return
+	}
+	var input admin.PermissionInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, domain.ErrInvalid)
+		return
+	}
+	input.ID = c.Param("id")
+	result, err := s.admin.SavePermission(c.Request.Context(), principal, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// handleReorderPermissions 按拖拽结果重写同级权限顺序，并返回最新权限树。
+func (s *Server) handleReorderPermissions(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, domain.ErrUnauthorized)
+		return
+	}
+	var input admin.PermissionReorderInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, domain.ErrInvalid)
+		return
+	}
+	result, err := s.admin.ReorderPermissions(c.Request.Context(), principal, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// handleDeletePermission 删除权限节点。
+func (s *Server) handleDeletePermission(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, domain.ErrUnauthorized)
+		return
+	}
+	if err := s.admin.DeletePermission(c.Request.Context(), principal, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // parseListQuery 解析与前端 ListQuery 一致的分页与搜索参数。

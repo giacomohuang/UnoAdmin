@@ -15,7 +15,7 @@ const appViews = fileURLToPath(new URL('./src/views', import.meta.url))
 /** 配置单一 SPA 入口，并把各启用 package 的页面合并进同一张路由表。 */
 export default defineConfig({
   // 独立缓存目录避免与旧版本依赖预构建产物混用，配置调整后可干净重建。
-  cacheDir: 'node_modules/.vite-unoadmin',
+  cacheDir: 'node_modules/.vite-unoadmin-v2',
   optimizeDeps: {
     /**
      * 页面大量使用异步路由组件，默认只扫描 index.html 会让 UnoUI 子路径在首次进入
@@ -33,7 +33,9 @@ export default defineConfig({
       '@mcistudio/unoui-vue/form',
       '@mcistudio/unoui-vue/input',
       '@mcistudio/unoui-vue/message',
+      '@mcistudio/unoui-vue/millercolumns',
       '@mcistudio/unoui-vue/pagination',
+      '@mcistudio/unoui-vue/popconfirm',
       '@mcistudio/unoui-vue/select',
       '@mcistudio/unoui-vue/skeleton',
       '@mcistudio/unoui-vue/switch',

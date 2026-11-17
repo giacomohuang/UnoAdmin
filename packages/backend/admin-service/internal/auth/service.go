@@ -316,13 +316,24 @@ func (s *Service) sessionForContext(ctx context.Context, account *domain.Account
 func (s *Service) sessionFor(ctx context.Context, account *domain.Account) (domain.AuthSession, error) {
 	tenantID := account.TenantID
 	if tenantID == "" {
-		// 平台管理员没有归属租户，默认进入第一个可用租户。
+		// 平台管理员没有归属租户，优先进入已配置经营主体的可用租户，
+		// 避免默认落在空租户上导致上下文切换器显示「未选择主体」。
 		all, err := s.tenants.ListAll(ctx)
 		if err != nil {
 			return domain.AuthSession{}, err
 		}
 		for _, tenant := range all {
-			if tenant.Status == domain.TenantActive {
+			if tenant.Status != domain.TenantActive {
+				continue
+			}
+			if tenantID == "" {
+				tenantID = tenant.ID
+			}
+			entities, err := s.entities.List(ctx, domain.ListQuery{TenantID: tenant.ID})
+			if err != nil {
+				return domain.AuthSession{}, err
+			}
+			if len(entities) > 0 {
 				tenantID = tenant.ID
 				break
 			}

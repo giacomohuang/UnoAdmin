@@ -55,9 +55,15 @@ type RoleRepository interface {
 	Update(ctx context.Context, role Role) (*Role, error)
 }
 
-// PermissionRepository 返回扁平权限节点，由领域层组装成树。
+// PermissionRepository 维护权限目录，扁平节点由领域层组装成树。
 type PermissionRepository interface {
 	ListAll(ctx context.Context) ([]Permission, error)
+	Get(ctx context.Context, id string) (*Permission, error)
+	Create(ctx context.Context, permission Permission) (*Permission, error)
+	Update(ctx context.Context, permission Permission) (*Permission, error)
+	Delete(ctx context.Context, id string) error
+	// Reorder 按给定顺序重写同级节点的 sortOrder。
+	Reorder(ctx context.Context, ids []string) error
 }
 
 // Claims 是令牌中包含的主体信息。出于安全考虑，令牌不携带权限列表。

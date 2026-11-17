@@ -102,7 +102,7 @@ func CanAccessEntity(principal *Principal, entityID string) bool
 | 组织 | `GET /orgs?legalEntityId=`、`POST /orgs`、`PUT /orgs/:id` | `org:view/create/update` |
 | 账户 | `GET/POST /accounts`、`PUT /accounts/:id`、`PATCH /accounts/:id/status` | `account:view/create/update` |
 | 角色 | `GET/POST /roles`、`PUT /roles/:id` | `role:view/create/update` |
-| 权限 | `GET /permissions` | `permission:view` |
+| 权限 | `GET /permissions`、`POST /permissions`、`PUT /permissions/:id`、`DELETE /permissions/:id`、`POST /permissions/reorder` | `permission:view/create/update/delete` |
 | 指标 | `GET /stats` | 登录即可 |
 
 非平台账号调用 `GET /tenants` 只会得到自己的租户；`POST/PUT /tenants` 仅平台运营管理员可用。

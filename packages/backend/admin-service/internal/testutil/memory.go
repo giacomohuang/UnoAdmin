@@ -215,6 +215,72 @@ func (r *PermissionRepo) ListAll(_ context.Context) ([]domain.Permission, error)
 	return r.Nodes, nil
 }
 
+// Get 按 ID 查询权限节点。
+func (r *PermissionRepo) Get(_ context.Context, id string) (*domain.Permission, error) {
+	for _, node := range r.Nodes {
+		if node.ID == id {
+			return &node, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+// Create 写入权限节点并拒绝重复编码。
+func (r *PermissionRepo) Create(_ context.Context, permission domain.Permission) (*domain.Permission, error) {
+	for _, node := range r.Nodes {
+		if node.Code == permission.Code {
+			return nil, domain.ErrConflict
+		}
+	}
+	permission.ID = nextID("perm")
+	r.Nodes = append(r.Nodes, permission)
+	return &permission, nil
+}
+
+// Update 覆盖权限节点。
+func (r *PermissionRepo) Update(_ context.Context, permission domain.Permission) (*domain.Permission, error) {
+	for index, node := range r.Nodes {
+		if node.ID != permission.ID {
+			continue
+		}
+		if node.Code != permission.Code {
+			for _, other := range r.Nodes {
+				if other.Code == permission.Code {
+					return nil, domain.ErrConflict
+				}
+			}
+		}
+		r.Nodes[index] = permission
+		return &permission, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+// Delete 移除权限节点。
+func (r *PermissionRepo) Delete(_ context.Context, id string) error {
+	for index, node := range r.Nodes {
+		if node.ID == id {
+			r.Nodes = append(r.Nodes[:index], r.Nodes[index+1:]...)
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+// Reorder 按给定顺序重写同级节点的 sortOrder。
+func (r *PermissionRepo) Reorder(_ context.Context, ids []string) error {
+	order := make(map[string]int, len(ids))
+	for index, id := range ids {
+		order[id] = index
+	}
+	for index, node := range r.Nodes {
+		if sort, ok := order[node.ID]; ok {
+			r.Nodes[index].SortOrder = sort
+		}
+	}
+	return nil
+}
+
 // TenantRepo 是租户仓储的内存实现。
 type TenantRepo struct {
 	Tenants map[string]domain.Tenant

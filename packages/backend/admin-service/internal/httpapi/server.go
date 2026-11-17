@@ -72,6 +72,10 @@ func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) *gi
 	secured.POST("/roles", requirePermission("role:create"), s.handleCreateRole)
 	secured.PUT("/roles/:id", requirePermission("role:update"), s.handleUpdateRole)
 	secured.GET("/permissions", requirePermission("permission:view"), s.handleListPermissions)
+	secured.POST("/permissions", requirePermission("permission:create"), s.handleCreatePermission)
+	secured.POST("/permissions/reorder", requirePermission("permission:update"), s.handleReorderPermissions)
+	secured.PUT("/permissions/:id", requirePermission("permission:update"), s.handleUpdatePermission)
+	secured.DELETE("/permissions/:id", requirePermission("permission:delete"), s.handleDeletePermission)
 
 	return engine
 }

@@ -21,7 +21,7 @@ import type { Permission, Role, RoleId, SaveRole } from '@unoadmin/core'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import PageHeader from '../../components/PageHeader.vue'
-import PermissionTree from '../../components/PermissionTree.vue'
+import PermissionGrant from '../../components/PermissionGrant.vue'
 import { useAdminBaseContext } from '../../composables/useAdminBaseContext'
 import { useAdminBaseServices } from '../../composables/useAdminBaseServices'
 
@@ -131,12 +131,11 @@ async function open(record?: Role) {
   })
   formError.value = ''
   drawerOpen.value = true
-  if (!permissions.value.length) {
-    try {
-      permissions.value = await permissionService.list()
-    } catch (cause) {
-      formError.value = cause instanceof Error ? cause.message : '权限目录加载失败'
-    }
+  // 每次打开都重新拉取权限目录，避免权限管理页刚调整过的节点在这里看到旧数据。
+  try {
+    permissions.value = await permissionService.list()
+  } catch (cause) {
+    formError.value = cause instanceof Error ? cause.message : '权限目录加载失败'
   }
 }
 
@@ -250,7 +249,7 @@ onMounted(load)
             </div>
           </div>
           <Alert v-if="!permissions.length" type="info" show-icon title="权限目录为空，请确认后端种子数据已执行。" />
-          <PermissionTree v-else v-model="form.permissionCodes" :nodes="permissions" :disabled="saving" />
+          <PermissionGrant v-else v-model="form.permissionCodes" :nodes="permissions" :disabled="saving" />
         </section>
       </div>
       <template #footer>

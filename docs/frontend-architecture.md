@@ -78,6 +78,7 @@ export interface NavigationItem {
 | --- | --- |
 | 页面标题 / 状态 / 操作 | `PageHeader` 插槽 |
 | 列表 | `Table` + `Skeleton` + `Pagination` |
+| 层级浏览 | `MillerColumns`（权限目录，右侧 `info-panel` 展示详情；`sortable` 启用 Drag & Drop 排序） |
 | 新建 / 编辑 | `Drawer` + `Form` + `FormItem` |
 | 选择 | `Select`（多选 + `filterable` + `collapse-tags`） |
 | 状态 | `Tag`、`Switch` |
@@ -127,7 +128,7 @@ export interface AdminSessionState {
 | --- | --- |
 | `accounts` | `list` / `create` / `update` / `updateStatus` |
 | `roles` | `list` / `create` / `update` |
-| `permissions` | `list` |
+| `permissions` | `list` / `create` / `update` / `remove` / `reorder` |
 | `tenants` | `list` / `create` / `update` |
 | `legalEntities` | `list` / `create` / `update` |
 | `orgs` | `tree` / `create` / `update` |

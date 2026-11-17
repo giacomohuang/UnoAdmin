@@ -59,6 +59,14 @@ func entityPrincipal() *domain.Principal {
 	}
 }
 
+// platformPrincipal 返回平台运营管理员的调用主体。
+func platformPrincipal() *domain.Principal {
+	return &domain.Principal{
+		AccountID: "acc-platform", DataScope: domain.DataScopeTenant,
+		PlatformAdmin: true, Permissions: []string{"*"},
+	}
+}
+
 func TestListAccountsFillsRoleAndEntityNames(t *testing.T) {
 	svc, _, _ := fixtures()
 
@@ -237,6 +245,76 @@ func TestEntityOperatorCannotGrantForeignEntity(t *testing.T) {
 		DataScope: domain.DataScopeTenant, LegalEntityIDs: []string{"le-east"},
 	}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("SaveAccount(tenant scope) error = %v, want ErrForbidden", err)
+	}
+}
+
+func TestSavePermissionRequiresPlatformAdmin(t *testing.T) {
+	svc, _, _ := fixtures()
+
+	if _, err := svc.SavePermission(context.Background(), groupPrincipal(), admin.PermissionInput{
+		Name: "导出账户", Code: "account:export", Type: "action", Scope: domain.PermissionScopeTenant, ParentID: "p-account",
+	}); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("SavePermission() error = %v, want ErrForbidden", err)
+	}
+}
+
+func TestSavePermissionRejectsDuplicateCodeAndCycle(t *testing.T) {
+	svc, _, _ := fixtures()
+	principal := platformPrincipal()
+
+	if _, err := svc.SavePermission(context.Background(), principal, admin.PermissionInput{
+		Name: "重复权限", Code: "account:view", Type: "page", Scope: domain.PermissionScopeTenant,
+	}); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("duplicate code error = %v, want ErrConflict", err)
+	}
+
+	// 让 p-org 挂到 p-account 下再尝试反向移动，形成父子环。
+	created, err := svc.SavePermission(context.Background(), principal, admin.PermissionInput{
+		Name: "组织详情", Code: "org:detail", Type: "page", Scope: domain.PermissionScopeEntity, ParentID: "p-org",
+	})
+	if err != nil {
+		t.Fatalf("create permission error = %v", err)
+	}
+	if _, err := svc.SavePermission(context.Background(), principal, admin.PermissionInput{
+		ID: "p-org", Name: "组织架构", Code: "org:view", Type: "page", Scope: domain.PermissionScopeEntity, ParentID: created.ID,
+	}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("cycle error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestReorderPermissionsRewritesSiblingOrder(t *testing.T) {
+	svc, _, _ := fixtures()
+
+	tree, err := svc.ReorderPermissions(context.Background(), platformPrincipal(), admin.PermissionReorderInput{
+		ParentID: "", IDs: []string{"p-org", "p-account"},
+	})
+	if err != nil {
+		t.Fatalf("ReorderPermissions() error = %v", err)
+	}
+	if len(tree) != 2 || tree[0].ID != "p-org" || tree[1].ID != "p-account" {
+		t.Fatalf("tree order = %+v, want p-org before p-account", tree)
+	}
+
+	// 跨父级提交视为非法拖拽。
+	if _, err := svc.ReorderPermissions(context.Background(), platformPrincipal(), admin.PermissionReorderInput{
+		ParentID: "p-account", IDs: []string{"p-org"},
+	}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("cross-parent reorder error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestDeletePermissionRejectsParentWithChildren(t *testing.T) {
+	svc, _, _ := fixtures()
+	principal := platformPrincipal()
+
+	// 夹具中的 p-org 没有子节点，先补一个再删除父节点。
+	if _, err := svc.SavePermission(context.Background(), principal, admin.PermissionInput{
+		Name: "组织详情", Code: "org:detail", Type: "page", Scope: domain.PermissionScopeEntity, ParentID: "p-org",
+	}); err != nil {
+		t.Fatalf("create permission error = %v", err)
+	}
+	if err := svc.DeletePermission(context.Background(), principal, "p-org"); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("delete parent error = %v, want ErrConflict", err)
 	}
 }
 

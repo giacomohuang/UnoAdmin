@@ -1,6 +1,6 @@
 import type { AdminStats, ListQuery, PageResult } from './query'
 import type { Account, LegalEntity, OrgUnit, Permission, Role, Tenant } from './types/entities'
-import type { AccountId, LegalEntityId, OrgId, RoleId, TenantId } from './types/identifiers'
+import type { AccountId, LegalEntityId, OrgId, PermissionId, RoleId, TenantId } from './types/identifiers'
 
 /** 可复用基础管理包所需的全部服务端口。 */
 export interface BaseServices {
@@ -31,6 +31,11 @@ export interface RoleService {
 /** 权限服务契约。 */
 export interface PermissionService {
   list(): Promise<Permission[]>
+  create(input: SavePermission): Promise<Permission>
+  update(id: PermissionId, input: SavePermission): Promise<Permission>
+  remove(id: PermissionId): Promise<void>
+  /** 按拖拽结果重写同级权限顺序，返回最新权限树。 */
+  reorder(input: ReorderPermissions): Promise<Permission[]>
 }
 
 /** 租户服务契约。 */
@@ -113,4 +118,20 @@ export interface SaveRole {
   dataScope: Role['dataScope']
   legalEntityId: string
   permissionCodes: string[]
+}
+
+/** 新建或更新权限节点允许提交的字段。 */
+export interface SavePermission {
+  name: string
+  code: string
+  type: Permission['type']
+  scope: Permission['scope']
+  parentId: string
+  sortOrder: number
+}
+
+/** 同级权限拖拽排序的请求体。 */
+export interface ReorderPermissions {
+  parentId: string
+  ids: string[]
 }

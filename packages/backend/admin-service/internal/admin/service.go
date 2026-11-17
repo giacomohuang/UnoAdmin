@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -100,6 +101,23 @@ type RoleInput struct {
 	DataScope       string   `json:"dataScope"`
 	LegalEntityID   string   `json:"legalEntityId"`
 	PermissionCodes []string `json:"permissionCodes"`
+}
+
+// PermissionInput 是新建或更新权限节点时允许提交的字段。
+type PermissionInput struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Code      string `json:"code"`
+	Type      string `json:"type"`
+	Scope     string `json:"scope"`
+	ParentID  string `json:"parentId"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+// PermissionReorderInput 是同级权限拖拽排序的请求体。
+type PermissionReorderInput struct {
+	ParentID string   `json:"parentId"`
+	IDs      []string `json:"ids"`
 }
 
 // TenantOverview 是租户列表的一行，主体列表与统计数量由 Tenant 的内嵌字段承载。
@@ -737,6 +755,157 @@ func (s *Service) ListPermissions(ctx context.Context) ([]domain.Permission, err
 		return nil, err
 	}
 	return domain.BuildPermissionTree(nodes), nil
+}
+
+// SavePermission 创建或更新权限节点。
+//
+// 权限目录是平台级配置，只有平台运营管理员可以维护；父节点必须存在，
+// 且不能把节点移动到自己的后代之下，避免形成环。
+func (s *Service) SavePermission(ctx context.Context, principal *domain.Principal, input PermissionInput) (*domain.Permission, error) {
+	if !principal.PlatformAdmin {
+		return nil, domain.ErrForbidden
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if input.Name == "" || input.Code == "" {
+		return nil, fmt.Errorf("%w: permission name and code are required", domain.ErrInvalid)
+	}
+	if !permissionCodePattern.MatchString(input.Code) {
+		return nil, fmt.Errorf("%w: permission code %q is invalid", domain.ErrInvalid, input.Code)
+	}
+	switch input.Type {
+	case "menu", "page", "action":
+	default:
+		return nil, fmt.Errorf("%w: unsupported permission type %q", domain.ErrInvalid, input.Type)
+	}
+	switch input.Scope {
+	case domain.PermissionScopePlatform, domain.PermissionScopeTenant, domain.PermissionScopeEntity:
+	default:
+		return nil, fmt.Errorf("%w: unsupported permission scope %q", domain.ErrInvalid, input.Scope)
+	}
+
+	nodes, err := s.permissions.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range nodes {
+		if node.Code == input.Code && node.ID != input.ID {
+			return nil, fmt.Errorf("%w: permission code %q already exists", domain.ErrConflict, input.Code)
+		}
+	}
+	if input.ParentID != "" {
+		if input.ParentID == input.ID {
+			return nil, fmt.Errorf("%w: permission cannot be its own parent", domain.ErrInvalid)
+		}
+		if !permissionHasID(nodes, input.ParentID) {
+			return nil, fmt.Errorf("%w: parent permission not found", domain.ErrInvalid)
+		}
+		if input.ID != "" && isPermissionDescendant(nodes, input.ParentID, input.ID) {
+			return nil, fmt.Errorf("%w: permission cannot move under its own descendant", domain.ErrInvalid)
+		}
+	}
+
+	permission := domain.Permission{
+		ID: input.ID, Name: input.Name, Code: input.Code, Type: input.Type,
+		Scope: input.Scope, ParentID: input.ParentID, SortOrder: input.SortOrder,
+	}
+	if input.ID == "" {
+		return s.permissions.Create(ctx, permission)
+	}
+	current, err := s.permissions.Get(ctx, input.ID)
+	if err != nil {
+		return nil, err
+	}
+	permission.ID = current.ID
+	return s.permissions.Update(ctx, permission)
+}
+
+// ReorderPermissions 按拖拽结果重写同级权限的顺序，并返回最新权限树。
+func (s *Service) ReorderPermissions(ctx context.Context, principal *domain.Principal, input PermissionReorderInput) ([]domain.Permission, error) {
+	if !principal.PlatformAdmin {
+		return nil, domain.ErrForbidden
+	}
+	if len(input.IDs) == 0 {
+		return nil, fmt.Errorf("%w: permission ids are required", domain.ErrInvalid)
+	}
+	nodes, err := s.permissions.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[string]domain.Permission, len(nodes))
+	for _, node := range nodes {
+		byID[node.ID] = node
+	}
+	for _, id := range input.IDs {
+		node, ok := byID[id]
+		if !ok {
+			return nil, domain.ErrNotFound
+		}
+		// MillerColumns 每次只提交同一列的节点，跨父级提交视为非法请求。
+		if node.ParentID != input.ParentID {
+			return nil, fmt.Errorf("%w: permissions must share the same parent", domain.ErrInvalid)
+		}
+	}
+	if err := s.permissions.Reorder(ctx, input.IDs); err != nil {
+		return nil, err
+	}
+	updated, err := s.permissions.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return domain.BuildPermissionTree(updated), nil
+}
+
+// DeletePermission 删除叶子权限；仍被角色引用或存在子节点时拒绝删除。
+func (s *Service) DeletePermission(ctx context.Context, principal *domain.Principal, id string) error {
+	if !principal.PlatformAdmin {
+		return domain.ErrForbidden
+	}
+	nodes, err := s.permissions.ListAll(ctx)
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		if node.ParentID == id {
+			return fmt.Errorf("%w: remove child permissions first", domain.ErrConflict)
+		}
+	}
+	return s.permissions.Delete(ctx, id)
+}
+
+// permissionCodePattern 限定权限码字符集，避免与路由/日志字段冲突。
+var permissionCodePattern = regexp.MustCompile(`^[a-z0-9:._-]{2,64}$`)
+
+// permissionHasID 判断权限目录中是否存在指定节点。
+func permissionHasID(nodes []domain.Permission, id string) bool {
+	for _, node := range nodes {
+		if node.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// isPermissionDescendant 判断 candidate 是否位于 ancestor 的子树中。
+func isPermissionDescendant(nodes []domain.Permission, candidate string, ancestor string) bool {
+	byID := make(map[string]domain.Permission, len(nodes))
+	for _, node := range nodes {
+		byID[node.ID] = node
+	}
+	visited := map[string]bool{}
+	cursor := candidate
+	for cursor != "" && !visited[cursor] {
+		visited[cursor] = true
+		node, ok := byID[cursor]
+		if !ok {
+			return false
+		}
+		if node.ParentID == ancestor {
+			return true
+		}
+		cursor = node.ParentID
+	}
+	return false
 }
 
 // Stats 汇总当前租户的规模指标，供工作台展示。

@@ -171,13 +171,27 @@ func (w *seedWriter) ensureWithID(collection string, filter bson.D, id bson.Obje
 
 // upsert 覆盖代码托管的文档（权限目录、内置角色），不存在时插入。
 func (w *seedWriter) upsert(collection string, filter bson.D, fields bson.D) (bson.ObjectID, error) {
+	return w.upsertKeep(collection, filter, fields)
+}
+
+// upsertKeep 在更新时保留指定字段的现有值。
+//
+// 权限目录的 sortOrder 允许管理员拖拽调整，重新执行种子不能把顺序重置回代码声明顺序。
+func (w *seedWriter) upsertKeep(collection string, filter bson.D, fields bson.D, keep ...string) (bson.ObjectID, error) {
 	coll := w.db.Collection(collection)
 	existing, found, err := w.findID(coll, filter)
 	if err != nil {
 		return bson.NilObjectID, err
 	}
 	if found {
-		if _, err := coll.UpdateOne(w.ctx, bson.D{{Key: "_id", Value: existing}}, bson.D{{Key: "$set", Value: fields}}); err != nil {
+		update := bson.D{}
+		for _, element := range fields {
+			if containsValue(keep, element.Key) {
+				continue
+			}
+			update = append(update, element)
+		}
+		if _, err := coll.UpdateOne(w.ctx, bson.D{{Key: "_id", Value: existing}}, bson.D{{Key: "$set", Value: update}}); err != nil {
 			return bson.NilObjectID, err
 		}
 		return existing, nil
@@ -287,6 +301,9 @@ var permissionCatalog = []permissionNode{
 	{code: "role:update", name: "角色授权", kind: "action", scope: domain.PermissionScopeTenant, parent: "role:view", sort: 1},
 
 	{code: "permission:view", name: "权限管理", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 5},
+	{code: "permission:create", name: "新建权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 0},
+	{code: "permission:update", name: "编辑权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 1},
+	{code: "permission:delete", name: "删除权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 2},
 }
 
 // syncPermissions 按权限码覆盖写入权限目录，并记录主键供角色授权引用。
@@ -300,10 +317,10 @@ func (w *seedWriter) syncPermissions() error {
 			}
 			parentID = resolved
 		}
-		id, err := w.upsert("permissions", bson.D{{Key: "code", Value: node.code}}, bson.D{
+		id, err := w.upsertKeep("permissions", bson.D{{Key: "code", Value: node.code}}, bson.D{
 			{Key: "name", Value: node.name}, {Key: "code", Value: node.code}, {Key: "type", Value: node.kind},
 			{Key: "scope", Value: node.scope}, {Key: "parentId", Value: parentID}, {Key: "sortOrder", Value: node.sort},
-		})
+		}, "sortOrder")
 		if err != nil {
 			return err
 		}
@@ -453,4 +470,14 @@ func (w *seedWriter) ensureAccounts(hash string, holdingID bson.ObjectID, mingyu
 		}
 	}
 	return nil
+}
+
+// containsValue 判断字符串切片是否包含目标值。
+func containsValue(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }

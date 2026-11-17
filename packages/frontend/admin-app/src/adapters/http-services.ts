@@ -10,11 +10,14 @@ import type {
   OrgUnit,
   PageResult,
   Permission,
+  PermissionId,
+  ReorderPermissions,
   Role,
   RoleId,
   SaveAccount,
   SaveLegalEntity,
   SaveOrg,
+  SavePermission,
   SaveRole,
   SaveTenant,
   Tenant,
@@ -59,7 +62,13 @@ export function createHttpServices(client: ApiClient): AppServices {
         update: (id: RoleId, input: SaveRole) => write<Role>(client, `roles/${encodeURIComponent(id)}`, 'PUT', input)
       },
       permissions: {
-        list: () => client.request<Permission[]>('permissions')
+        list: () => client.request<Permission[]>('permissions'),
+        create: (input: SavePermission) => write<Permission>(client, 'permissions', 'POST', input),
+        update: (id: PermissionId, input: SavePermission) =>
+          write<Permission>(client, `permissions/${encodeURIComponent(id)}`, 'PUT', input),
+        remove: (id: PermissionId) =>
+          client.request<void>(`permissions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+        reorder: (input: ReorderPermissions) => write<Permission[]>(client, 'permissions/reorder', 'POST', input)
       },
       tenants: {
         list: (query) => client.request<PageResult<Tenant>>(`tenants?${toQueryString(query)}`),

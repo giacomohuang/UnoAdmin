@@ -96,6 +96,18 @@ func (f *fakeAdmin) ListPermissions(context.Context) ([]domain.Permission, error
 	return []domain.Permission{}, f.err
 }
 
+func (f *fakeAdmin) SavePermission(context.Context, *domain.Principal, admin.PermissionInput) (*domain.Permission, error) {
+	return &domain.Permission{ID: "perm-001"}, f.err
+}
+
+func (f *fakeAdmin) ReorderPermissions(context.Context, *domain.Principal, admin.PermissionReorderInput) ([]domain.Permission, error) {
+	return []domain.Permission{}, f.err
+}
+
+func (f *fakeAdmin) DeletePermission(context.Context, *domain.Principal, string) error {
+	return f.err
+}
+
 func (f *fakeAdmin) ListTenants(_ context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[admin.TenantOverview], error) {
 	f.lastQuery, f.lastPrincipal = query, principal
 	return domain.PageResult[admin.TenantOverview]{}, f.err
