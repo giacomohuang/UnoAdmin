@@ -48,8 +48,7 @@ const form = reactive<SaveLegalEntity>({
 
 const tenant = computed(() => session.state.currentTenant)
 const isStandalone = computed(() => tenant.value?.mode === 'standalone')
-const canCreate = computed(() => session.can('entity:create') && !isStandalone.value)
-const canUpdate = computed(() => session.can('entity:update'))
+const canEdit = computed(() => session.can('entity:edit'))
 const groupEntity = computed(() => items.value.find((entity) => entity.type === 'GROUP') ?? null)
 
 const rules: FormRules = {
@@ -64,7 +63,7 @@ const columns = computed<TableColumn<LegalEntity>[]>(() => [
   { key: 'parentId', title: '上级主体', minWidth: 160 },
   { key: 'address', title: '注册地址', minWidth: 200 },
   { key: 'status', title: '状态', width: 90 },
-  ...(canUpdate.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
+  ...(canEdit.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
 ])
 
 /** 集团主体排在前面，其下的经营公司紧随其后并缩进展示。 */
@@ -90,7 +89,8 @@ const parentOptions = computed(() =>
     .map((entity) => ({ label: `${entity.name}（${entity.code}）`, value: entity.id }))
 )
 
-const parentNames = computed(() => new Map(items.value.map((entity) => [entity.id, entity.name])))
+/** 主体 ID 到名称的映射；表格行里的 parentId 是普通字符串，因此键类型放宽为 string。 */
+const parentNames = computed(() => new Map<string, string>(items.value.map((entity) => [entity.id, entity.name])))
 
 /** 加载当前租户下被授权的主体。 */
 async function load() {
@@ -164,7 +164,7 @@ onMounted(load)
       <template #description>{{ tenant?.name }} · {{ isStandalone ? '单体租户只有唯一主体' : '集团租户可有多个独立经营主体' }}</template>
       <template #actions>
         <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load" />
-        <Button v-if="canCreate" icon="i-lucide:plus" @click="open()">新建主体</Button>
+        <Button v-if="canEdit && !isStandalone" icon="i-lucide:plus" @click="open()">新建主体</Button>
       </template>
     </PageHeader>
 

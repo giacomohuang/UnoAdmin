@@ -54,8 +54,7 @@ const form = reactive<SaveRole>({
   permissionCodes: []
 })
 
-const canCreate = computed(() => session.can('role:create'))
-const canUpdate = computed(() => session.can('role:update'))
+const canEdit = computed(() => session.can('role:edit'))
 const isStandalone = computed(() => session.state.currentTenant?.mode === 'standalone')
 const entityOptions = computed(() => [
   { label: '租户级（适用于全部主体）', value: '' },
@@ -79,7 +78,7 @@ const columns = computed<TableColumn<Role>[]>(() => [
   { key: 'userCount', title: '成员', width: 80, align: 'right' },
   { key: 'description', title: '说明', minWidth: 220 },
   { key: 'status', title: '状态', width: 90 },
-  ...(canUpdate.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
+  ...(canEdit.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
 ])
 
 /** 数据范围标签。 */
@@ -166,14 +165,14 @@ onMounted(load)
 <template>
   <div class="min-w-0 p-4">
     <PageHeader :loading="loading">
-      <template #title>角色管理</template>
+      <template #title>角色</template>
       <template #status>共 {{ total }} 个角色</template>
       <template #description>角色聚合权限码与数据范围，账户通过角色获得菜单、路由与按钮权限。</template>
       <template #actions>
         <form class="flex w-full shrink-0 items-center justify-end gap-2" @submit.prevent="search">
           <Input v-model="keyword" prefix-icon="i-lucide:search" clearable placeholder="搜索角色名称、编码或权限" class="w-56" @clear="search" />
           <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load" />
-          <Button v-if="canCreate" icon="i-lucide:plus" @click="open()">新建角色</Button>
+          <Button v-if="canEdit" icon="i-lucide:plus" @click="open()">新建角色</Button>
         </form>
       </template>
     </PageHeader>
@@ -264,7 +263,7 @@ onMounted(load)
 
 <router lang="json">
 {
-  "title": "角色管理",
+  "title": "角色",
   "permission": "role:view"
 }
 </router>

@@ -13,6 +13,7 @@ export type PermissionNode = {
   name: string
   code: string
   type: Permission['type']
+  scope: Permission['scope']
   sort: number
   childCount: number
 } & Record<string, unknown>
@@ -26,6 +27,7 @@ export function flattenPermissions(nodes: Permission[], parentId: string | null 
       name: node.name,
       code: node.code,
       type: node.type,
+      scope: node.scope,
       sort: index,
       childCount: node.children?.length ?? 0
     },

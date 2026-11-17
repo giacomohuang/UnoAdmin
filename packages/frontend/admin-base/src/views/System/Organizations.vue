@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 组织架构：维护经营主体内部的部门、门店与班组层级。
+ * 组织架构：编辑经营主体内部的部门、门店与班组层级。
  *
  * 组织是账户授权的粒度，也是「本人组织」数据范围的锚点；
  * 页面只允许在当前可访问的经营主体内维护。
@@ -40,8 +40,7 @@ const editing = ref<OrgUnit | null>(null)
 const formRef = ref<InstanceType<typeof Form>>()
 const form = reactive<SaveOrg>({ legalEntityId: '', parentId: '', name: '', type: 'department', sort: 0, status: 'active' })
 
-const canCreate = computed(() => session.can('org:create'))
-const canUpdate = computed(() => session.can('org:update'))
+const canEdit = computed(() => session.can('org:edit'))
 const entityOptions = computed(() => session.state.legalEntities.map((entity) => ({ label: entity.name, value: entity.id })))
 const currentEntity = computed(() => session.state.legalEntities.find((entity) => entity.id === entityId.value))
 const isStandalone = computed(() => session.state.currentTenant?.mode === 'standalone')
@@ -164,7 +163,7 @@ onMounted(load)
       <template #actions>
         <Select v-if="entityOptions.length > 1" v-model="entityId" :options="entityOptions" size="sm" width="200px" aria-label="选择经营主体" />
         <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load" />
-        <Button v-if="canCreate" icon="i-lucide:plus" @click="openCreate(null)">新增根组织</Button>
+        <Button v-if="canEdit" icon="i-lucide:plus" @click="openCreate(null)">新增根组织</Button>
       </template>
     </PageHeader>
 
@@ -177,7 +176,7 @@ onMounted(load)
         <div v-else-if="!tree.length" class="grid place-items-center gap-2 py-16 text-center">
           <span class="i-lucide:network h-8 w-8 text-quaternary" aria-hidden="true" />
           <p class="m-0 text-sm text-tertiary">当前主体还没有组织节点</p>
-          <Button v-if="canCreate" variant="outline" size="sm" icon="i-lucide:plus" @click="openCreate(null)">新增根组织</Button>
+          <Button v-if="canEdit" variant="outline" size="sm" icon="i-lucide:plus" @click="openCreate(null)">新增根组织</Button>
         </div>
         <OrgTree v-else :nodes="tree" :selected-id="selected?.id" @select="selected = $event" />
       </section>
@@ -209,9 +208,9 @@ onMounted(load)
               <dd class="m-0">{{ selected.children?.length ?? 0 }} 个</dd>
             </div>
           </dl>
-          <div v-if="canCreate || canUpdate" class="mt-4 flex flex-wrap gap-2 border-t border-light pt-4">
-            <Button v-if="canCreate" variant="outline" size="sm" icon="i-lucide:plus" @click="openCreate(selected)">新增子组织</Button>
-            <Button v-if="canUpdate" size="sm" icon="i-lucide:pencil" @click="openEdit(selected)">编辑</Button>
+          <div v-if="canEdit" class="mt-4 flex flex-wrap gap-2 border-t border-light pt-4">
+            <Button v-if="canEdit" variant="outline" size="sm" icon="i-lucide:plus" @click="openCreate(selected)">新增子组织</Button>
+            <Button v-if="canEdit" size="sm" icon="i-lucide:pencil" @click="openEdit(selected)">编辑</Button>
           </div>
           <p v-if="isStandalone" class="mb-0 mt-3 text-xs text-tertiary">单体租户的组织通常与唯一主体同名，可继续按部门细分。</p>
         </template>

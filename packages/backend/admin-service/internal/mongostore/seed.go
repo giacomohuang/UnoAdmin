@@ -135,6 +135,7 @@ func (w *seedWriter) seed(hash string) error {
 		return err
 	}
 
+
 	return w.ensureAccounts(hash, holdingID, mingyuanID, hqID, eastID, mingyuanEntityID, eastRoot.ID, mingyuanRoot.ID, now)
 }
 
@@ -278,32 +279,26 @@ type permissionNode struct {
 // permissionCatalog 是平台内置的权限目录，按父节点在前排列。
 var permissionCatalog = []permissionNode{
 	{code: "dashboard:view", name: "工作台", kind: "menu", scope: domain.PermissionScopeTenant, parent: "", sort: 0},
-	{code: "system", name: "系统管理", kind: "menu", scope: domain.PermissionScopeTenant, parent: "", sort: 1},
+	{code: "system", name: "系统", kind: "menu", scope: domain.PermissionScopeTenant, parent: "", sort: 1},
 
-	{code: "tenant:view", name: "租户管理", kind: "page", scope: domain.PermissionScopePlatform, parent: "system", sort: 0},
-	{code: "tenant:create", name: "新建租户", kind: "action", scope: domain.PermissionScopePlatform, parent: "tenant:view", sort: 0},
-	{code: "tenant:update", name: "编辑租户", kind: "action", scope: domain.PermissionScopePlatform, parent: "tenant:view", sort: 1},
+	{code: "tenant:view", name: "租户", kind: "page", scope: domain.PermissionScopePlatform, parent: "system", sort: 0},
+	{code: "tenant:edit", name: "编辑租户", kind: "action", scope: domain.PermissionScopePlatform, parent: "tenant:view", sort: 0},
 
 	{code: "entity:view", name: "经营主体", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 1},
-	{code: "entity:create", name: "新建主体", kind: "action", scope: domain.PermissionScopeTenant, parent: "entity:view", sort: 0},
-	{code: "entity:update", name: "编辑主体", kind: "action", scope: domain.PermissionScopeTenant, parent: "entity:view", sort: 1},
+	{code: "entity:edit", name: "编辑主体", kind: "action", scope: domain.PermissionScopeTenant, parent: "entity:view", sort: 0},
 
 	{code: "org:view", name: "组织架构", kind: "page", scope: domain.PermissionScopeEntity, parent: "system", sort: 2},
-	{code: "org:create", name: "新建组织", kind: "action", scope: domain.PermissionScopeEntity, parent: "org:view", sort: 0},
-	{code: "org:update", name: "编辑组织", kind: "action", scope: domain.PermissionScopeEntity, parent: "org:view", sort: 1},
+	{code: "org:edit", name: "编辑组织", kind: "action", scope: domain.PermissionScopeEntity, parent: "org:view", sort: 0},
 
-	{code: "account:view", name: "账户管理", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 3},
-	{code: "account:create", name: "新建账户", kind: "action", scope: domain.PermissionScopeTenant, parent: "account:view", sort: 0},
-	{code: "account:update", name: "编辑账户", kind: "action", scope: domain.PermissionScopeTenant, parent: "account:view", sort: 1},
+	{code: "account:view", name: "账户", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 3},
+	{code: "account:edit", name: "编辑账户", kind: "action", scope: domain.PermissionScopeTenant, parent: "account:view", sort: 0},
 
-	{code: "role:view", name: "角色管理", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 4},
-	{code: "role:create", name: "新建角色", kind: "action", scope: domain.PermissionScopeTenant, parent: "role:view", sort: 0},
-	{code: "role:update", name: "角色授权", kind: "action", scope: domain.PermissionScopeTenant, parent: "role:view", sort: 1},
+	{code: "role:view", name: "角色", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 4},
+	{code: "role:edit", name: "编辑角色", kind: "action", scope: domain.PermissionScopeTenant, parent: "role:view", sort: 0},
 
-	{code: "permission:view", name: "权限管理", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 5},
-	{code: "permission:create", name: "新建权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 0},
-	{code: "permission:update", name: "编辑权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 1},
-	{code: "permission:delete", name: "删除权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 2},
+	{code: "permission:view", name: "权限", kind: "page", scope: domain.PermissionScopeTenant, parent: "system", sort: 5},
+	{code: "permission:edit", name: "编辑权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 0},
+	{code: "permission:delete", name: "删除权限", kind: "action", scope: domain.PermissionScopeTenant, parent: "permission:view", sort: 1},
 }
 
 // syncPermissions 按权限码覆盖写入权限目录，并记录主键供角色授权引用。
@@ -345,6 +340,7 @@ func (w *seedWriter) prunePermissions() error {
 	return err
 }
 
+
 // syncRoles 覆盖写入内置角色，租户级角色用空 ObjectId 表示跨主体。
 func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID, eastID bson.ObjectID, now time.Time) error {
 	roles := []struct {
@@ -366,10 +362,10 @@ func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID
 			name: "集团管理员", desc: "统一管理集团下全部经营主体的账户与角色",
 			scope: domain.DataScopeTenant,
 			permissions: []string{
-				"dashboard:view", "tenant:view", "entity:view", "entity:create", "entity:update",
-				"org:view", "org:create", "org:update",
-				"account:view", "account:create", "account:update",
-				"role:view", "role:create", "role:update", "permission:view",
+				"dashboard:view", "tenant:view", "entity:view", "entity:edit",
+				"org:view", "org:edit",
+				"account:view", "account:edit",
+				"role:view", "role:edit", "permission:view",
 			},
 		},
 		{
@@ -377,8 +373,8 @@ func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID
 			name: "主体管理员", desc: "仅管理被授权经营主体内的组织与账户",
 			scope: domain.DataScopeEntity,
 			permissions: []string{
-				"dashboard:view", "entity:view", "org:view", "org:create", "org:update",
-				"account:view", "account:create", "account:update",
+				"dashboard:view", "entity:view", "org:view", "org:edit",
+				"account:view", "account:edit",
 			},
 		},
 		{
@@ -392,9 +388,9 @@ func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID
 			name: "企业管理员", desc: "单体公司内拥有全部管理权限",
 			scope: domain.DataScopeTenant,
 			permissions: []string{
-				"dashboard:view", "tenant:view", "entity:view", "org:view", "org:create", "org:update",
-				"account:view", "account:create", "account:update",
-				"role:view", "role:create", "role:update", "permission:view",
+				"dashboard:view", "tenant:view", "entity:view", "org:view", "org:edit",
+				"account:view", "account:edit",
+				"role:view", "role:edit", "permission:view",
 			},
 		},
 	}

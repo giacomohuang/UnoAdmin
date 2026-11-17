@@ -60,8 +60,7 @@ const form = reactive<SaveAccount>({
   roleIds: []
 })
 
-const canCreate = computed(() => session.can('account:create'))
-const canUpdate = computed(() => session.can('account:update'))
+const canEdit = computed(() => session.can('account:edit'))
 const entityOptions = computed(() => session.state.legalEntities.map((entity) => ({ label: entity.name, value: entity.id })))
 const roleOptions = computed(() => roles.value.map((role) => ({
   label: `${role.name}（${role.dataScope === 'tenant' ? '租户级' : role.dataScope === 'self' ? '本人组织' : '主体级'}）`,
@@ -85,7 +84,7 @@ const columns = computed<TableColumn<Account>[]>(() => [
   { key: 'dataScope', title: '数据范围', width: 120 },
   { key: 'roleNames', title: '角色', minWidth: 170 },
   { key: 'status', title: '状态', width: 90 },
-  ...(canUpdate.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
+  ...(canEdit.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
 ])
 
 /** 数据范围的中文标签与配色。 */
@@ -220,14 +219,14 @@ onMounted(load)
 <template>
   <div class="min-w-0 p-4">
     <PageHeader :loading="loading">
-      <template #title>账户管理</template>
+      <template #title>账户</template>
       <template #status>共 {{ total }} 个账户</template>
       <template #description>账户按经营主体与组织授权；角色提供权限码与数据范围。</template>
       <template #actions>
         <form class="flex w-full shrink-0 items-center justify-end gap-2" @submit.prevent="search">
           <Input v-model="keyword" prefix-icon="i-lucide:search" clearable placeholder="搜索账号、姓名或邮箱" class="w-56" @clear="search" />
           <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load" />
-          <Button v-if="canCreate" icon="i-lucide:user-plus" @click="open()">新建账户</Button>
+          <Button v-if="canEdit" icon="i-lucide:user-plus" @click="open()">新建账户</Button>
         </form>
       </template>
     </PageHeader>
@@ -364,7 +363,7 @@ onMounted(load)
 
 <router lang="json">
 {
-  "title": "账户管理",
+  "title": "账户",
   "permission": "account:view"
 }
 </router>

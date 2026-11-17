@@ -61,12 +61,12 @@ packages/
 | 页面 | 路由 | 说明 |
 | --- | --- | --- |
 | 工作台 | `/dashboard` | 规模指标与当前上下文 |
-| 租户管理 | `/system/tenants` | 租户形态、套餐、状态；单体租户自动建主体 |
+| 租户 | `/system/tenants` | 租户形态、套餐、状态；单体租户自动建主体 |
 | 经营主体 | `/system/entities` | 集团总部 + 经营公司层级 |
 | 组织架构 | `/system/organizations` | 主体内组织树，账户授权粒度 |
-| 账户管理 | `/system/accounts` | 数据范围、主体/组织授权、角色绑定 |
-| 角色管理 | `/system/roles` | 权限码与数据范围，权限树授权 |
-| 权限管理 | `/system/permissions` | 只读权限目录 |
+| 账户 | `/system/accounts` | 数据范围、主体/组织授权、角色绑定 |
+| 角色 | `/system/roles` | 权限码与数据范围，权限树授权 |
+| 权限 | `/system/permissions` | 权限目录浏览、编辑与拖拽排序 |
 
 UI 统一使用 [UnoUI](https://github.com/giacomohuang/UnoUI) 组件与 UnoCSS 语义色，布局、菜单与交互对齐 UnoMap 管理端。
 

@@ -18,7 +18,7 @@ import { Skeleton } from '@mcistudio/unoui-vue/skeleton'
 import { Tag } from '@mcistudio/unoui-vue/tag'
 import { Icon } from '@iconify/vue'
 import type { Permission, PermissionId, SavePermission } from '@unoadmin/core'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 import PageHeader from '../../components/PageHeader.vue'
 import {
@@ -46,6 +46,18 @@ const drawerOpen = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
 const sorting = ref(false)
+
+/** 拖拽幽灵卡片：跟随指针显示被拖拽权限的名称、权限码与类型。 */
+const ghost = ref<{
+  name: string
+  code: string
+  type: Permission['type']
+  x: number
+  y: number
+  width: number
+} | null>(null)
+/** 1×1 透明元素，用于隐藏浏览器原生拖拽预览。 */
+let nativePreview: HTMLElement | null = null
 const formError = ref('')
 const editing = ref<PermissionNode | null>(null)
 const formRef = ref<InstanceType<typeof Form>>()
@@ -55,8 +67,7 @@ const flat = computed(() => flattenPermissions(nodes.value))
 const selected = computed<PermissionNode | undefined>(() =>
   flat.value.find((node) => node.id === String(selection.value.at(-1) ?? ''))
 )
-const canCreate = computed(() => session.can('permission:create'))
-const canUpdate = computed(() => session.can('permission:update'))
+const canEdit = computed(() => session.can('permission:edit'))
 const canDelete = computed(() => session.can('permission:delete'))
 const pageCount = computed(() => flat.value.filter((node) => node.type === 'page').length)
 const actionCount = computed(() => flat.value.filter((node) => node.type === 'action').length)
@@ -223,7 +234,7 @@ async function remove(node: PermissionNode) {
  * 避免 MillerColumns 就地修改的 sort 与嵌套树不一致。
  */
 async function handleReorder(ids: MillerColumnsId[]) {
-  if (!canUpdate.value || sorting.value || !ids.length) return
+  if (!canEdit.value || sorting.value || !ids.length) return
   const first = flat.value.find((node) => node.id === String(ids[0]))
   if (!first) return
   sorting.value = true
@@ -239,13 +250,81 @@ async function handleReorder(ids: MillerColumnsId[]) {
   }
 }
 
+/** 原生拖拽预览替换为 1×1 透明元素，视觉反馈统一交给 ghost 卡片。 */
+function transparentPreview() {
+  if (!nativePreview) {
+    nativePreview = document.createElement('div')
+    nativePreview.setAttribute('aria-hidden', 'true')
+    nativePreview.style.cssText = 'position:fixed;top:-1000px;left:-1000px;width:1px;height:1px;opacity:0;pointer-events:none'
+    document.body.append(nativePreview)
+  }
+  return nativePreview
+}
+
+/** 指针移动时只更新纵向位置，横向始终与列左缘对齐，避免 ghost 左侧空出一截。 */
+function moveGhost(event: DragEvent) {
+  if (!ghost.value) return
+  ghost.value = { ...ghost.value, y: event.clientY }
+}
+
+/** 拖拽结束（含在窗口外松开）时清理 ghost 与全局监听。 */
+function endGhost() {
+  ghost.value = null
+  document.body.classList.remove('unoadmin-dragging')
+  window.removeEventListener('dragover', moveGhost, true)
+  window.removeEventListener('dragend', endGhost, true)
+  window.removeEventListener('drop', endGhost, true)
+}
+
+/** 行拖拽开始：读取行数据、生成 ghost，并隐藏原生拖拽预览。 */
+function startGhost(event: DragEvent) {
+  if (!canEdit.value) return
+  const row = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-ui-miller-columns-row="true"]')
+  if (!row) return
+  const node = flat.value.find((item) => item.id === row.dataset.id)
+  if (!node) return
+  const rect = row.getBoundingClientRect()
+
+  ghost.value = {
+    name: node.name,
+    code: node.code,
+    type: node.type,
+    // 横向对齐行左缘（而不是指针位置），ghost 与列内容保持同一条基线。
+    x: rect.left,
+    y: event.clientY,
+    width: rect.width
+  }
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setDragImage(transparentPreview(), 0, 0)
+  }
+  // 拖动过程中指针可能经过任意元素，统一整页手型，避免光标在行间闪烁。
+  document.body.classList.add('unoadmin-dragging')
+  window.addEventListener('dragover', moveGhost, true)
+  window.addEventListener('dragend', endGhost, true)
+  window.addEventListener('drop', endGhost, true)
+}
+
+/** 幽灵卡片图标底色按权限类型区分。 */
+function ghostTone(type: Permission['type']) {
+  if (type === 'action') return 'bg-amber-50 text-amber-600'
+  if (type === 'menu') return 'bg-emerald-50 text-emerald-600'
+  return 'bg-sky-50 text-sky-600'
+}
+
+onBeforeUnmount(() => {
+  endGhost()
+  nativePreview?.remove()
+  nativePreview = null
+})
+
 onMounted(load)
 </script>
 
 <template>
   <div class="min-w-0 p-4">
     <PageHeader :loading="loading">
-      <template #title>权限管理</template>
+      <template #title>权限</template>
       <template #status>{{ flat.length }} 项权限 · {{ pageCount }} 页面 · {{ actionCount }} 操作</template>
       <template #description>权限由代码声明，按列逐级查看；拖拽行可调整同级顺序，角色负责组合授权。</template>
       <template #actions>
@@ -270,7 +349,7 @@ onMounted(load)
             </Autocomplete>
           </div>
           <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load()" />
-          <Button v-if="canCreate" icon="i-lucide:plus" @click="openCreate()">新建权限</Button>
+          <Button v-if="canEdit" icon="i-lucide:plus" @click="openCreate()">新建权限</Button>
         </div>
       </template>
     </PageHeader>
@@ -278,31 +357,31 @@ onMounted(load)
     <Alert v-if="error" :title="error" type="error" show-icon class="mb-4" />
 
     <Skeleton v-if="!ready && loading" variant="columns" height="32rem" show-info-panel />
-    <MillerColumns
-      v-else
-      v-model="selection"
-      :data-source="flat"
-      id-key="id"
-      parent-id-key="parentId"
-      order-key="sort"
-      height="32rem"
-      min-height="24rem"
-      width="100%"
-      column-width="15rem"
-      info-panel-width="22rem"
-      show-info-panel
-      radius="md"
-      bordered
-      :sortable="canUpdate && !saving && !deleting && !sorting"
-      :empty-text="'该权限没有下级'"
-      :no-data-text="'暂无权限目录'"
-      aria-label="权限目录"
-      @reorder="handleReorder"
-    >
+    <div v-else @dragstart.capture="startGhost">
+      <MillerColumns
+        v-model="selection"
+        :data-source="flat"
+        id-key="id"
+        parent-id-key="parentId"
+        order-key="sort"
+        height="32rem"
+        min-height="24rem"
+        width="100%"
+        column-width="15rem"
+        info-panel-width="22rem"
+        show-info-panel
+        radius="md"
+        bordered
+        :sortable="canEdit && !saving && !deleting && !sorting"
+        :empty-text="'该权限没有下级'"
+        :no-data-text="'暂无权限目录'"
+        aria-label="权限目录"
+        @reorder="handleReorder"
+      >
       <template #col-title="{ colIndex, parentId }">
         <span>第 {{ colIndex + 1 }} 级</span>
         <Button
-          v-if="canCreate"
+          v-if="canEdit"
           size="icon"
           variant="mono"
           icon="i-lucide:plus"
@@ -356,8 +435,8 @@ onMounted(load)
               </div>
             </dl>
 
-            <div v-if="canUpdate || canDelete" class="mt-6 flex flex-wrap gap-2 border-t border-light pt-4">
-              <Button v-if="canUpdate" variant="outline" icon="i-lucide:pencil" @click="openEdit(item)">编辑</Button>
+            <div v-if="canEdit || canDelete" class="mt-6 flex flex-wrap gap-2 border-t border-light pt-4">
+              <Button v-if="canEdit" variant="outline" icon="i-lucide:pencil" @click="openEdit(item)">编辑</Button>
               <Popconfirm
                 v-if="canDelete"
                 title="删除该权限？"
@@ -378,7 +457,38 @@ onMounted(load)
           </div>
         </div>
       </template>
-    </MillerColumns>
+      </MillerColumns>
+    </div>
+
+    <!-- 拖拽幽灵：卡片跟随指针，替代浏览器原生拖拽快照。 -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-120 ease-out"
+        enter-from-class="scale-95 opacity-0"
+        leave-active-class="transition duration-100 ease-in"
+        leave-to-class="scale-95 opacity-0"
+      >
+        <div
+          v-if="ghost"
+          data-permission-ghost="true"
+          class="-translate-y-1/2 pointer-events-none fixed z-[100] overflow-hidden rounded-lg border border-brand/40 bg-primary/95 shadow-[0_10px_30px_rgb(15_23_42_/_0.22)] ring-1 ring-brand/10 backdrop-blur-sm"
+          :style="{ left: `${ghost.x}px`, top: `${ghost.y}px`, width: `${ghost.width}px` }"
+          aria-hidden="true"
+        >
+          <div class="flex items-center gap-2 px-3 py-2">
+            <span class="grid h-6 w-6 shrink-0 place-items-center rounded-md" :class="ghostTone(ghost.type)">
+              <Icon :icon="permissionIcon(ghost)" class="h-3.5 w-3.5" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-xs font-600 leading-4">{{ ghost.name }}</div>
+              <div class="truncate font-mono text-[11px] leading-4 text-tertiary">{{ ghost.code }}</div>
+            </div>
+            <span class="i-lucide:grip-vertical h-3.5 w-3.5 shrink-0 text-quaternary" aria-hidden="true" />
+          </div>
+          <div class="h-0.5 w-full bg-brand/50" />
+        </div>
+      </Transition>
+    </Teleport>
 
     <Drawer v-model:visible="drawerOpen" :title="editing ? '编辑权限' : '新建权限'" size="min(32rem, 100vw)" :show-close="!saving" :close-on-click-modal="!saving">
       <div class="min-w-0 space-y-4 p-4">
@@ -389,7 +499,7 @@ onMounted(load)
               <Input v-model="form.name" :maxlength="40" placeholder="例如：新建账户" />
             </FormItem>
             <FormItem label="权限码" prop="code" required class="sm:col-span-2">
-              <Input v-model="form.code" :maxlength="64" placeholder="例如：account:create" />
+              <Input v-model="form.code" :maxlength="64" placeholder="例如：account:edit" />
             </FormItem>
             <FormItem label="类型">
               <Select v-model="form.type" :options="typeOptions" />
@@ -416,9 +526,20 @@ onMounted(load)
   </div>
 </template>
 
+<style scoped>
+/* 可拖拽行使用抓取手型；落位槽样式放在全局样式里，保证能覆盖组件库默认值。 */
+:deep([data-ui-miller-columns-row='true'][draggable='true']) {
+  cursor: grab;
+}
+
+:deep([data-ui-miller-columns-row='true'][draggable='true']:active) {
+  cursor: grabbing;
+}
+</style>
+
 <router lang="json">
 {
-  "title": "权限管理",
+  "title": "权限",
   "permission": "permission:view"
 }
 </router>

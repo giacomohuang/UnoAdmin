@@ -48,33 +48,33 @@ func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) *gi
 
 	// 租户（采购与计费边界）。
 	secured.GET("/tenants", requirePermission("tenant:view"), s.handleListTenants)
-	secured.POST("/tenants", requirePermission("tenant:create"), s.handleCreateTenant)
-	secured.PUT("/tenants/:id", requirePermission("tenant:update"), s.handleUpdateTenant)
+	secured.POST("/tenants", requirePermission("tenant:edit"), s.handleCreateTenant)
+	secured.PUT("/tenants/:id", requirePermission("tenant:edit"), s.handleUpdateTenant)
 
 	// 经营主体（租户内隔离单元）。
 	secured.GET("/legal-entities", requirePermission("entity:view"), s.handleListLegalEntities)
-	secured.POST("/legal-entities", requirePermission("entity:create"), s.handleCreateLegalEntity)
-	secured.PUT("/legal-entities/:id", requirePermission("entity:update"), s.handleUpdateLegalEntity)
+	secured.POST("/legal-entities", requirePermission("entity:edit"), s.handleCreateLegalEntity)
+	secured.PUT("/legal-entities/:id", requirePermission("entity:edit"), s.handleUpdateLegalEntity)
 
 	// 组织架构（经营主体内部结构）。
 	secured.GET("/orgs", requirePermission("org:view"), s.handleListOrgs)
-	secured.POST("/orgs", requirePermission("org:create"), s.handleCreateOrg)
-	secured.PUT("/orgs/:id", requirePermission("org:update"), s.handleUpdateOrg)
+	secured.POST("/orgs", requirePermission("org:edit"), s.handleCreateOrg)
+	secured.PUT("/orgs/:id", requirePermission("org:edit"), s.handleUpdateOrg)
 
 	// 账户（管理端登录身份）。
 	secured.GET("/accounts", requirePermission("account:view"), s.handleListAccounts)
-	secured.PATCH("/accounts/:id/status", requirePermission("account:update"), s.handleUpdateAccountStatus)
-	secured.POST("/accounts", requirePermission("account:create"), s.handleCreateAccount)
-	secured.PUT("/accounts/:id", requirePermission("account:update"), s.handleUpdateAccount)
+	secured.PATCH("/accounts/:id/status", requirePermission("account:edit"), s.handleUpdateAccountStatus)
+	secured.POST("/accounts", requirePermission("account:edit"), s.handleCreateAccount)
+	secured.PUT("/accounts/:id", requirePermission("account:edit"), s.handleUpdateAccount)
 
 	// 角色与权限。
 	secured.GET("/roles", requirePermission("role:view"), s.handleListRoles)
-	secured.POST("/roles", requirePermission("role:create"), s.handleCreateRole)
-	secured.PUT("/roles/:id", requirePermission("role:update"), s.handleUpdateRole)
+	secured.POST("/roles", requirePermission("role:edit"), s.handleCreateRole)
+	secured.PUT("/roles/:id", requirePermission("role:edit"), s.handleUpdateRole)
 	secured.GET("/permissions", requirePermission("permission:view"), s.handleListPermissions)
-	secured.POST("/permissions", requirePermission("permission:create"), s.handleCreatePermission)
-	secured.POST("/permissions/reorder", requirePermission("permission:update"), s.handleReorderPermissions)
-	secured.PUT("/permissions/:id", requirePermission("permission:update"), s.handleUpdatePermission)
+	secured.POST("/permissions", requirePermission("permission:edit"), s.handleCreatePermission)
+	secured.POST("/permissions/reorder", requirePermission("permission:edit"), s.handleReorderPermissions)
+	secured.PUT("/permissions/:id", requirePermission("permission:edit"), s.handleUpdatePermission)
 	secured.DELETE("/permissions/:id", requirePermission("permission:delete"), s.handleDeletePermission)
 
 	return engine

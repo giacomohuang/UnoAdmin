@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "pnpm --filter @unoadmin/admin-app dev",
     "build": "pnpm --filter @unoadmin/admin-app build",
-    "typecheck": "pnpm --filter @unoadmin/admin-app type-check",
+    "typecheck": "pnpm --filter @unoadmin/core type-check && pnpm --filter @unoadmin/admin-base type-check && pnpm --filter @unoadmin/admin-app type-check",
     "test": "pnpm --filter @unoadmin/admin-app test:unit",
     "lint": "pnpm --filter @unoadmin/admin-app lint",
     "format": "oxfmt ."

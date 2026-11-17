@@ -265,7 +265,7 @@ func TestLegalEntityHeaderOutsideScopeIsForbidden(t *testing.T) {
 }
 
 func TestUpdateStatusMapsInvalidError(t *testing.T) {
-	auth := &fakeAuth{principal: &domain.Principal{AccountID: "acc-001", Permissions: []string{"account:update"}}}
+	auth := &fakeAuth{principal: &domain.Principal{AccountID: "acc-001", Permissions: []string{"account:edit"}}}
 	admin := &fakeAdmin{err: domain.ErrInvalid}
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts/acc-001/status", strings.NewReader(`{"status":"unknown"}`))
 	req.Header.Set("Authorization", "Bearer valid-token")

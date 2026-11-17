@@ -45,8 +45,7 @@ const editing = ref<Tenant | null>(null)
 const form = reactive<SaveTenant>({ name: '', code: '', mode: 'group', plan: 'standard', contact: '', status: 'active' })
 
 const isPlatform = computed(() => Boolean(session.state.account?.platformAdmin))
-const canCreate = computed(() => session.can('tenant:create'))
-const canUpdate = computed(() => session.can('tenant:update'))
+const canEdit = computed(() => session.can('tenant:edit'))
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入租户名称' }],
@@ -62,7 +61,7 @@ const columns = computed<TableColumn<Tenant>[]>(() => [
   { key: 'accountCount', title: '账户', width: 80, align: 'right' },
   { key: 'contact', title: '联系人', minWidth: 120 },
   { key: 'status', title: '状态', width: 90 },
-  ...(canUpdate.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
+  ...(canEdit.value ? [{ key: 'actions', title: '操作', width: 90, align: 'center' as const, fixed: 'right' as const }] : [])
 ])
 
 /** 加载租户列表；非平台账号由后端收敛到自身租户。 */
@@ -134,14 +133,14 @@ onMounted(load)
 <template>
   <div class="min-w-0 p-4">
     <PageHeader :loading="loading">
-      <template #title>租户管理</template>
+      <template #title>租户</template>
       <template #status>共 {{ total }} 个租户</template>
       <template #description>租户是采购与数据隔离的最外层；集团客户一个租户多个主体，单体客户一个租户一个主体。</template>
       <template #actions>
         <form class="flex w-full shrink-0 items-center justify-end gap-2" @submit.prevent="search">
           <Input v-model="keyword" prefix-icon="i-lucide:search" clearable placeholder="搜索租户名称或编码" class="w-56" @clear="search" />
           <Button variant="outline" size="icon-md" icon="i-lucide:refresh-cw" title="刷新" :loading="loading" @click="load" />
-          <Button v-if="canCreate && isPlatform" icon="i-lucide:plus" @click="open()">新建租户</Button>
+          <Button v-if="canEdit && isPlatform" icon="i-lucide:plus" @click="open()">新建租户</Button>
         </form>
       </template>
     </PageHeader>
@@ -233,7 +232,7 @@ onMounted(load)
 
 <router lang="json">
 {
-  "title": "租户管理",
+  "title": "租户",
   "permission": "tenant:view"
 }
 </router>
