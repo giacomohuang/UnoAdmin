@@ -19,13 +19,19 @@ type authService interface {
 }
 
 // cors 处理跨域预检与响应头，允许前端携带 Authorization、X-Tenant-Id 与 X-Legal-Entity-Id。
+// 配置为通配符时反射请求 Origin，兼容本地开发端口漂移；生产环境应使用明确来源。
 func cors(origins []string) gin.HandlerFunc {
 	allowed := make(map[string]bool, len(origins))
+	allowAll := false
 	for _, origin := range origins {
+		if origin == "*" {
+			allowAll = true
+			continue
+		}
 		allowed[origin] = true
 	}
 	return func(c *gin.Context) {
-		if origin := c.GetHeader("Origin"); allowed[origin] {
+		if origin := c.GetHeader("Origin"); origin != "" && (allowAll || allowed[origin]) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Vary", "Origin")

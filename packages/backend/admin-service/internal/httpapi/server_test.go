@@ -296,6 +296,23 @@ func TestCORSPreflight(t *testing.T) {
 	}
 }
 
+// TestCORSAllowsAnyOriginWithWildcard 验证开发通配符会反射动态 Vite 端口。
+func TestCORSAllowsAnyOriginWithWildcard(t *testing.T) {
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/auth/login", nil)
+	req.Header.Set("Origin", "http://localhost:5175")
+	rec := httptest.NewRecorder()
+	httpapi.NewServer(&fakeAuth{}, &fakeAdmin{}, []string{"*"}).ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", rec.Code)
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5175" {
+		t.Fatalf("missing wildcard CORS origin header: %v", rec.Header())
+	}
+	if rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Fatalf("missing wildcard CORS credentials header: %v", rec.Header())
+	}
+}
+
 func TestWriteErrorFallsBackToInternalError(t *testing.T) {
 	auth := &fakeAuth{principal: &domain.Principal{AccountID: "acc-001", Permissions: []string{"account:view"}}}
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts", nil)
