@@ -53,11 +53,12 @@
       <Button variant="mono" size="icon" icon="i-lucide:scan" title="居中" @click="centerCanvas" />
     </div>
 
+    <!-- Ghost 容器仅负责定位与透明度过渡，视觉层级由节点组件统一绘制。 -->
     <div
       v-if="dragGhost.visible && dragGhost.item"
       ref="dragGhostRef"
-      class="pointer-events-none fixed z1000 w-fit origin-top-left select-none transition-opacity duration-75"
-      :class="dragGhost.ready ? 'opacity-88' : 'opacity-0'"
+      class="pointer-events-none fixed z1000 w-fit origin-top-left select-none transition-opacity duration-75 will-change-transform"
+      :class="dragGhost.ready ? 'opacity-95' : 'opacity-0'"
       :style="{ left: `${dragGhost.x}px`, top: `${dragGhost.y}px`, transform: `scale(${dragGhost.scale})` }"
     >
       <OrgNode :items="[dragGhost.item]" :level="dragGhost.level" selected-id="" dragging-id="" preview-target-id="" preview-direction="" :preview-size="dragPreviewSize" :entity-names="entityNames" :editable="canEditOrganization" ghost />

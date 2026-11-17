@@ -133,4 +133,25 @@ describe('UnoMap organization node', () => {
       expect(branch.classes()).toContain('border-l')
     }
   })
+
+  it('renders a floating drag ghost without its incoming connector', () => {
+    const wrapper = mount(OrgNode, {
+      props: {
+        items: draft(),
+        level: 2,
+        selectedId: '',
+        draggingId: '',
+        previewTargetId: '',
+        previewDirection: '',
+        previewSize: { width: 190, height: 86, cardLeft: 0, cardTop: 0 },
+        editable: true,
+        ghost: true
+      }
+    })
+
+    // The ghost root has two child stems, but no stem entering the dragged card itself.
+    expect(wrapper.findAll('[data-org-connector="stem"]')).toHaveLength(2)
+    expect(wrapper.find('[data-org-ghost-badge]').text()).toContain('移动中')
+    expect(wrapper.find('[data-org-ghost-id="root"]').classes()).toContain('outline-dashed')
+  })
 })

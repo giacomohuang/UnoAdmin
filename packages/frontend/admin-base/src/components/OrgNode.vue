@@ -10,7 +10,8 @@
       :data-org-item-id="!ghost && entry.kind === 'item' ? entry.item.id : undefined"
     >
       <div v-if="!isGhostRoot && level > 1 && entry.connectorTotal > 1" data-org-connector="horizontal" class="absolute top-0" :class="horizontalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
-      <div v-if="level > 1" data-org-connector="stem" class="h-5 w-0 border-l" :class="verticalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
+      <!-- Ghost 只展示拖动分支本身，不显示从原父节点进入卡片的顶部连线。 -->
+      <div v-if="level > 1 && !isGhostRoot" data-org-connector="stem" class="h-5 w-0 border-l" :class="verticalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
 
       <div
         v-if="entry.kind === 'preview'"
@@ -32,6 +33,7 @@
       </div>
 
       <div v-else-if="entry.kind === 'item'" data-org-node-branch class="flex flex-col items-center">
+        <!-- Ghost 使用悬浮阴影、虚线外轮廓和移动标记，与真实节点明确区分。 -->
         <div
           :data-org-node-card="ghost ? undefined : ''"
           :data-org-id="ghost ? undefined : entry.item.id"
@@ -41,20 +43,19 @@
           :tabindex="ghost ? undefined : 0"
           :aria-pressed="ghost ? undefined : selectedId === entry.item.id"
           class="group/card relative z3 w-46 touch-none rounded-lg p-1 shadow-soft transition-all duration-150"
-          :class="[
-            ghost ? 'shadow-floating ring-2 ring-brand/30' : 'cursor-pointer hover:shadow-panel',
-            levelClass(level),
-            !ghost && selectedId === entry.item.id ? 'ring-2 ring-brand shadow-panel' : '',
-            !ghost && draggingId === entry.item.id ? 'opacity-45 outline-2 outline-dashed outline-brand' : ''
-          ]"
+          :class="[ghost ? 'cursor-grabbing' : 'cursor-pointer', levelClass(level), !ghost && draggingId === entry.item.id ? 'opacity-45' : '']"
           @click.stop="selectNode(entry.item)"
           @keydown.enter.stop.prevent="selectNode(entry.item)"
           @keydown.space.stop.prevent="selectNode(entry.item)"
         >
+          <span v-if="ghost && isGhostRoot" data-org-ghost-badge class="pointer-events-none absolute -right-2 -top-3 z6 inline-flex h-6 items-center gap-1 rounded-full border-2 border-white/85 bg-brand px-2 text-[11px] font-700 tracking-wide text-white">
+            <span class="i-lucide:move size-3"></span>
+          </span>
+
           <div class="relative mb-1 flex h-6 items-center justify-between rounded-[5px_5px_3px_3px] px-1 text-xs text-white">
             <div class="relative z2 flex min-w-0 items-center gap-1">
               <span
-                v-if="editable && level !== 1 && !ghost"
+                v-if="editable && level !== 1"
                 data-org-interactive
                 role="button"
                 tabindex="0"
