@@ -10,7 +10,7 @@
       :data-org-item-id="!ghost && entry.kind === 'item' ? entry.item.id : undefined"
     >
       <div v-if="!isGhostRoot && level > 1 && entry.connectorTotal > 1" data-org-connector="horizontal" class="absolute top-0" :class="horizontalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
-      <div v-if="level > 1" data-org-connector="stem" class="h-5 w-px" :class="verticalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
+      <div v-if="level > 1" data-org-connector="stem" class="h-5 w-0 border-l" :class="verticalLineClass(entry.connectorIndex, entry.connectorTotal)"></div>
 
       <div
         v-if="entry.kind === 'preview'"
@@ -141,7 +141,7 @@
           </div>
         </div>
 
-        <div v-if="hasVisibleChildren(entry.item) || isPreviewChild(entry.item)" data-org-connector="branch" class="h-5 w-px bg-[#afaacb] dark:bg-zinc-600"></div>
+        <div v-if="hasVisibleChildren(entry.item) || isPreviewChild(entry.item)" data-org-connector="branch" class="h-5 w-0 border-l border-[#afaacb] dark:border-zinc-600"></div>
         <OrgNode
           v-if="hasVisibleChildren(entry.item) || isPreviewChild(entry.item)"
           :items="entry.item.children"
@@ -179,7 +179,6 @@ import { Button } from '@mcistudio/unoui-vue/button'
 import { computed } from 'vue'
 
 import type { OrgItem } from '../api/organizations'
-
 import type { OrgAddDirection } from './organizationTree'
 
 /** 拖动占位保存源分支尺寸与卡片在分支内的偏移。 */
@@ -311,12 +310,15 @@ function horizontalLineClass(index: number, total: number) {
   if (total <= 1) return ''
   if (index === 0) return 'left-1/2 right-0 h-5 rounded-tl-md border-l border-t border-[#afaacb] dark:border-zinc-600'
   if (index === total - 1) return 'left-0 right-1/2 h-5 rounded-tr-md border-r border-t border-[#afaacb] dark:border-zinc-600'
-  return 'left-0 right-0 h-px bg-[#afaacb] dark:bg-zinc-600'
+  /** 中段与首尾统一使用相同高度和顶部描边，避免 1px 背景线造成横线错位。 */
+  return 'left-0 right-0 h-5 border-t border-[#afaacb] dark:border-zinc-600'
 }
 
-/** 首尾节点的竖线由圆角线段一并绘制，避免直线覆盖圆弧。 */
+/** 首尾节点的竖线由圆角线段一并绘制；中段沿用边框描边，保证缩放后线宽一致。 */
 function verticalLineClass(index: number, total: number) {
-  if (isGhostRoot.value || total <= 1) return isGhostRoot.value ? '' : 'bg-[#afaacb] dark:bg-zinc-600'
-  return index === 0 || index === total - 1 ? 'invisible' : 'bg-[#afaacb] dark:bg-zinc-600'
+  const colorClass = 'border-[#afaacb] dark:border-zinc-600'
+  if (isGhostRoot.value) return ''
+  if (total <= 1) return colorClass
+  return index === 0 || index === total - 1 ? 'invisible' : colorClass
 }
 </script>
