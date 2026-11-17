@@ -7,7 +7,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/unoadmin/admin-service/internal/domain"
 )
@@ -133,9 +132,6 @@ func (w *seedWriter) seed(hash string) error {
 	}
 
 	if err := w.syncRoles(holdingID, mingyuanID, eastID, now); err != nil {
-		return err
-	}
-	if err := w.pruneLegacyRoles(); err != nil {
 		return err
 	}
 
@@ -343,45 +339,6 @@ func (w *seedWriter) prunePermissions() error {
 	return err
 }
 
-// legacyRoleCodes 是首版种子生成的演示角色编码。
-//
-// 这些角色使用中文编码且只挂了早已废弃的权限码（user:read、demo:read 等），
-// 保留在库中会让角色列表出现无法生效的授权项，因此种子执行时一并清理。
-var legacyRoleCodes = []string{"平台管理员", "运营经理", "只读访客"}
-
-// pruneLegacyRoles 删除首版演示角色，并从账户的角色引用中摘除。
-func (w *seedWriter) pruneLegacyRoles() error {
-	coll := w.db.Collection("roles")
-	cursor, err := coll.Find(w.ctx,
-		bson.D{{Key: "code", Value: bson.D{{Key: "$in", Value: legacyRoleCodes}}}},
-		options.Find().SetProjection(bson.D{{Key: "_id", Value: 1}}),
-	)
-	if err != nil {
-		return err
-	}
-	var docs []struct {
-		ID bson.ObjectID `bson:"_id"`
-	}
-	if err := cursor.All(w.ctx, &docs); err != nil {
-		return err
-	}
-	if len(docs) == 0 {
-		return nil
-	}
-
-	ids := make([]bson.ObjectID, 0, len(docs))
-	for _, doc := range docs {
-		ids = append(ids, doc.ID)
-	}
-	pull := bson.D{{Key: "$pull", Value: bson.D{{Key: "roleIds", Value: bson.D{{Key: "$in", Value: ids}}}}}}
-	if _, err := w.db.Collection("accounts").UpdateMany(w.ctx,
-		bson.D{{Key: "roleIds", Value: bson.D{{Key: "$in", Value: ids}}}}, pull,
-	); err != nil {
-		return err
-	}
-	_, err = coll.DeleteMany(w.ctx, bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: ids}}}})
-	return err
-}
 
 // syncRoles 覆盖写入内置角色，租户级角色用空 ObjectId 表示跨主体。
 func (w *seedWriter) syncRoles(holdingID bson.ObjectID, mingyuanID bson.ObjectID, eastID bson.ObjectID, now time.Time) error {
