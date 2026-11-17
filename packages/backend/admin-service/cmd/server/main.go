@@ -49,19 +49,23 @@ func main() {
 	tokens := token.NewJWT(cfg.JWTSecret, cfg.TokenTTL, store.NewTokenBlacklist())
 	refreshStore := redisstore.NewRefreshTokenStore(redisClient)
 	authService := auth.NewService(
-		store.NewUserRepository(),
+		store.NewAccountRepository(),
 		store.NewRoleRepository(),
 		store.NewTenantRepository(),
+		store.NewLegalEntityRepository(),
 		tokens,
 		hasher,
 		refreshStore,
 		cfg.RefreshTTL,
 	)
 	adminService := admin.NewService(
-		store.NewUserRepository(),
+		store.NewAccountRepository(),
 		store.NewRoleRepository(),
 		store.NewPermissionRepository(),
 		store.NewTenantRepository(),
+		store.NewLegalEntityRepository(),
+		store.NewOrgRepository(),
+		hasher,
 	)
 	// REST 服务：供前端 SPA 调用。
 	httpServer := &http.Server{

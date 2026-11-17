@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	pb "github.com/unoadmin/admin-service/gen/adminbase/v1"
+	"github.com/unoadmin/admin-service/internal/admin"
 	"github.com/unoadmin/admin-service/internal/domain"
 )
 
@@ -19,12 +20,14 @@ type verifier interface {
 }
 
 // adminAPI 是 gRPC 层需要的查询能力。
+//
+// 对外协议仍使用 User 命名（其它微服务已按此对接），内部实现已统一为 Account。
 type adminAPI interface {
-	GetUser(ctx context.Context, id string) (domain.User, error)
-	ListUsers(ctx context.Context, query domain.ListQuery) (domain.PageResult[domain.User], error)
-	ListRoles(ctx context.Context, query domain.ListQuery) (domain.PageResult[domain.Role], error)
+	GetAccount(ctx context.Context, id string) (domain.Account, error)
+	ListAccounts(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Account], error)
+	ListRoles(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[domain.Role], error)
 	ListPermissions(ctx context.Context) ([]domain.Permission, error)
-	ListTenants(ctx context.Context, query domain.ListQuery) (domain.PageResult[domain.Tenant], error)
+	ListTenants(ctx context.Context, principal *domain.Principal, query domain.ListQuery) (domain.PageResult[admin.TenantOverview], error)
 }
 
 // Server 实现生成的 AdminBaseServer 接口。
@@ -52,24 +55,28 @@ func (s *Server) VerifyToken(ctx context.Context, req *pb.VerifyTokenRequest) (*
 	}
 	return &pb.VerifyTokenResponse{
 		Valid:       true,
-		UserId:      principal.UserID,
+		UserId:      principal.AccountID,
 		TenantId:    principal.TenantID,
 		Permissions: principal.Permissions,
 	}, nil
 }
 
-// GetUser 按 ID 返回用户。
+// GetUser 按 ID 返回账户（对外沿用 User 协议名）。
 func (s *Server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
-	user, err := s.admin.GetUser(ctx, req.GetId())
+	account, err := s.admin.GetAccount(ctx, req.GetId())
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &pb.GetUserResponse{User: toProtoUser(user)}, nil
+	return &pb.GetUserResponse{User: toProtoUser(account)}, nil
 }
 
-// ListUsers 分页返回用户，支持租户范围过滤。
+// ListUsers 分页返回账户，支持租户范围过滤。
 func (s *Server) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResponse, error) {
-	page, err := s.admin.ListUsers(ctx, domain.ListQuery{
+	principal, err := s.principal(ctx, req.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
+	page, err := s.admin.ListAccounts(ctx, principal, domain.ListQuery{
 		Page: int(req.GetPage()), PageSize: int(req.GetPageSize()),
 		Search: req.GetSearch(), TenantID: req.GetTenantId(),
 	})
@@ -77,15 +84,19 @@ func (s *Server) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.L
 		return nil, grpcError(err)
 	}
 	items := make([]*pb.User, 0, len(page.Items))
-	for _, user := range page.Items {
-		items = append(items, toProtoUser(user))
+	for _, account := range page.Items {
+		items = append(items, toProtoUser(account))
 	}
 	return &pb.ListUsersResponse{Items: items, Total: int32(page.Total)}, nil
 }
 
 // ListRoles 分页返回角色。
 func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
-	page, err := s.admin.ListRoles(ctx, domain.ListQuery{
+	principal, err := s.principal(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	page, err := s.admin.ListRoles(ctx, principal, domain.ListQuery{
 		Page: int(req.GetPage()), PageSize: int(req.GetPageSize()), Search: req.GetSearch(),
 	})
 	if err != nil {
@@ -113,7 +124,11 @@ func (s *Server) ListPermissions(ctx context.Context, _ *pb.ListPermissionsReque
 
 // ListTenants 分页返回租户。
 func (s *Server) ListTenants(ctx context.Context, req *pb.ListTenantsRequest) (*pb.ListTenantsResponse, error) {
-	page, err := s.admin.ListTenants(ctx, domain.ListQuery{
+	principal, err := s.principal(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	page, err := s.admin.ListTenants(ctx, principal, domain.ListQuery{
 		Page: int(req.GetPage()), PageSize: int(req.GetPageSize()), Search: req.GetSearch(),
 	})
 	if err != nil {
@@ -121,9 +136,18 @@ func (s *Server) ListTenants(ctx context.Context, req *pb.ListTenantsRequest) (*
 	}
 	items := make([]*pb.Tenant, 0, len(page.Items))
 	for _, tenant := range page.Items {
-		items = append(items, toProtoTenant(tenant))
+		items = append(items, toProtoTenant(tenant.Tenant))
 	}
 	return &pb.ListTenantsResponse{Items: items, Total: int32(page.Total)}, nil
+}
+
+// principal 校验调用方令牌并返回主体；租户参数会被服务层收敛到主体范围。
+func (s *Server) principal(ctx context.Context, _ string) (*domain.Principal, error) {
+	principal, err := s.verifier.Verify(ctx, tokenFromContext(ctx))
+	if err != nil {
+		return nil, grpcError(err)
+	}
+	return principal, nil
 }
 
 // HasPermission 按调用方令牌中的实时权限做判定。

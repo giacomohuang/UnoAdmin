@@ -15,19 +15,24 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@iconify/vue": "^5.0.5",
+    "@mcistudio/unoui-vue": "^1.2.7",
     "@unoadmin/admin-base": "workspace:*",
     "@unoadmin/core": "workspace:*",
     "ky": "^2.2.0",
     "pinia": "^4.0.2",
     "vue": "^3.5.40",
+    "vue-i18n": "^11.4.20",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.155",
     "@playwright/test": "^1.61.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.3",
     "@unoadmin/vite-plugins": "workspace:*",
+    "@unocss/preset-icons": "^66.13.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitejs/plugin-vue-jsx": "^5.1.6",
     "@vitest/eslint-plugin": "^1.6.23",
@@ -45,6 +50,7 @@
     "oxfmt": "^0.59.0",
     "oxlint": "~1.74.0",
     "typescript": "~6.0.0",
+    "unocss": "^66.13.0",
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
     "vue-eslint-parser": "^10.4.1",

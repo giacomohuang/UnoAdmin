@@ -1,2 +1,5 @@
 packages:
   - packages/frontend/*
+allowBuilds:
+  # vue-demi 的 postinstall 负责按 Vue 版本切换导出，UnoUI 的 simplebar-vue 依赖它。
+  vue-demi: true

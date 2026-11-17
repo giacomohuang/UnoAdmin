@@ -1,12 +1,14 @@
 import ky from 'ky'
 
-import type { TenantId } from './types/identifiers'
+import type { LegalEntityId, TenantId } from './types/identifiers'
 
 /** Configuration injected by an application-specific HTTP adapter. */
 export interface HttpClientOptions {
   baseURL: string
   getToken?: () => string | null
   getTenantId?: () => TenantId | null
+  /** 当前经营主体；后端会校验它是否在令牌允许的范围内。 */
+  getLegalEntityId?: () => LegalEntityId | null
   fetchImpl?: typeof fetch
 }
 
@@ -28,8 +30,10 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
         ({ request }) => {
           const token = options.getToken?.()
           const tenantId = options.getTenantId?.()
+          const legalEntityId = options.getLegalEntityId?.()
           if (token) request.headers.set('Authorization', `Bearer ${token}`)
           if (tenantId) request.headers.set('X-Tenant-Id', tenantId)
+          if (legalEntityId) request.headers.set('X-Legal-Entity-Id', legalEntityId)
           if (!request.headers.has('Accept')) request.headers.set('Accept', 'application/json')
           if (request.body && !request.headers.has('Content-Type')) {
             request.headers.set('Content-Type', 'application/json')

@@ -1,375 +1,142 @@
 <script setup lang="ts">
-import type { NavigationItem, TenantId } from '@unoadmin/core'
-import { computed, ref } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+/**
+ * 管理端主布局：顶部上下文栏 + 100px 图标导航 + 180px 二级菜单 + 内容区。
+ *
+ * 结构与 UnoMap 管理端一致；菜单由模块声明并按权限过滤，租户与经营主体
+ * 切换集中在顶部，避免页面各自维护上下文。
+ */
+import type { NavigationItem } from '@unoadmin/core'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
+import ContextSwitcher from '../components/ContextSwitcher.vue'
+import NavMenu from '../components/NavMenu.vue'
+import SessionActions from '../components/SessionActions.vue'
 import { useAdminBaseContext } from '../composables/useAdminBaseContext'
 
-const { branding, modules, session, getNavigation } = useAdminBaseContext()
+const { branding, getNavigation, resolveNavigation } = useAdminBaseContext()
 const route = useRoute()
 const router = useRouter()
-const sidebarOpen = ref(false)
-const navigation = computed(getNavigation)
 
-/** Keep the active navigation state aligned with nested route paths. */
-function isActive(item: NavigationItem) {
-  return Boolean(item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`)))
+/** 当前视口是否仍适合常驻侧边栏。 */
+const wideViewport = ref(true)
+const menuVisible = ref(true)
+const selectedIndex = ref(-1)
+
+const navigation = computed<NavigationItem[]>(() => getNavigation())
+const routeIndex = computed(() =>
+  navigation.value.findIndex((item) => isItemActive(item) || item.children?.some((child) => isItemActive(child)))
+)
+const currentIndex = computed(() => (selectedIndex.value === -1 ? routeIndex.value : selectedIndex.value))
+const currentItem = computed(() => (currentIndex.value < 0 ? undefined : navigation.value[currentIndex.value]))
+const submenu = computed(() => currentItem.value?.children ?? [])
+const hasSubmenu = computed(() => submenu.value.length > 0)
+const showRail = computed(() => menuVisible.value && wideViewport.value)
+const breadcrumb = computed(() => resolveNavigation(route.path))
+const pageTitle = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : ''))
+
+/** 命中子路径也算激活，详情页不会丢失高亮。 */
+function isItemActive(item: NavigationItem) {
+  if (!item.path) return false
+  return route.path === item.path || route.path.startsWith(`${item.path}/`)
 }
 
-/** Switch the active tenant and close the mobile navigation affordance. */
-async function handleTenantChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  await session.switchTenant(target.value as TenantId)
-  sidebarOpen.value = false
+/** 选中一级入口：叶子直接导航，分组只切换二级菜单。 */
+function selectNavigation(item: NavigationItem, index: number) {
+  selectedIndex.value = index
+  if (!item.children?.length && item.path) void router.push(item.path)
+  if (!wideViewport.value) menuVisible.value = false
 }
 
-/** End the local session before returning to the manually declared sign-in route. */
-async function signOut() {
-  await session.signOut()
-  await router.push('/signin')
+/** 切换侧边栏显隐，窄屏下作为抽屉使用。 */
+function toggleMenu() {
+  menuVisible.value = !menuVisible.value
 }
+
+/** 记录视口宽度，窄屏默认收起侧边栏。 */
+function syncViewport() {
+  const wide = window.innerWidth >= 900
+  if (wide !== wideViewport.value) {
+    wideViewport.value = wide
+    menuVisible.value = wide
+  }
+}
+
+watch(
+  () => route.path,
+  () => {
+    selectedIndex.value = -1
+    if (!wideViewport.value) menuVisible.value = false
+  }
+)
+
+onMounted(() => {
+  syncViewport()
+  window.addEventListener('resize', syncViewport)
+})
+
+onBeforeUnmount(() => window.removeEventListener('resize', syncViewport))
 </script>
 
 <template>
-  <!-- The reusable shell owns navigation and tenant context, while pages own their data. -->
-  <div class="admin-layout">
-    <aside class="admin-sidebar" :class="{ 'admin-sidebar--open': sidebarOpen }">
-      <div class="admin-brand">
-        <span class="admin-brand__mark">{{ branding.productMark }}</span>
-        <div>
-          <strong>{{ branding.productName }}</strong>
-          <span>管理工作台</span>
+  <div class="flex h-screen w-screen flex-col overflow-hidden bg-secondary text-primary">
+    <header class="z-30 flex h-14 shrink-0 items-center gap-3 border-b border-light bg-primary px-3">
+      <button
+        type="button"
+        class="grid h-8 w-8 shrink-0 place-items-center rounded-md border-0 bg-transparent text-secondary transition-colors hover:(bg-secondary text-primary)"
+        :aria-label="menuVisible ? '收起菜单' : '展开菜单'"
+        :title="menuVisible ? '收起菜单' : '展开菜单'"
+        @click="toggleMenu"
+      >
+        <span :class="menuVisible ? 'i-lucide:panel-left-close' : 'i-lucide:panel-left-open'" class="h-5 w-5" aria-hidden="true" />
+      </button>
+
+      <div class="flex shrink-0 items-center gap-2 border-l border-light pl-3">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand text-sm font-700 text-white">{{ branding.productMark }}</span>
+        <div class="hidden flex-col sm:flex">
+          <strong class="text-sm leading-4">{{ branding.productName }}</strong>
+          <span class="text-[11px] leading-3 text-tertiary">多租户 SaaS 管理框架</span>
         </div>
       </div>
 
-      <nav class="admin-nav" aria-label="主导航">
-        <template v-for="item in navigation" :key="item.id">
-          <RouterLink v-if="item.to" class="admin-nav__item" :class="{ 'admin-nav__item--active': isActive(item) }" :to="item.to" @click="sidebarOpen = false">
-            <span>{{ item.label }}</span>
-          </RouterLink>
-          <div v-else class="admin-nav__group">
-            <span class="admin-nav__label">{{ item.label }}</span>
-            <RouterLink v-for="child in item.children" :key="child.id" class="admin-nav__item admin-nav__item--child" :class="{ 'admin-nav__item--active': isActive(child) }" :to="child.to || '/404'" @click="sidebarOpen = false">
-              <span>{{ child.label }}</span>
-            </RouterLink>
-          </div>
-        </template>
+      <nav class="ml-2 hidden min-w-0 items-center gap-1.5 text-sm text-tertiary md:flex" aria-label="面包屑">
+        <span v-if="breadcrumb.parent" class="shrink-0">{{ breadcrumb.parent.title }}</span>
+        <span v-if="breadcrumb.parent" class="i-lucide:chevron-right h-3.5 w-3.5 shrink-0 text-quaternary" aria-hidden="true" />
+        <span class="truncate text-secondary">{{ breadcrumb.current?.title || pageTitle || '工作台' }}</span>
       </nav>
 
-      <div class="admin-sidebar__footer">
-        <span>模块 {{ modules.length }} 个</span>
-        <span>SPA 模式</span>
+      <div class="ml-auto flex min-w-0 items-center gap-2">
+        <ContextSwitcher />
+        <SessionActions />
       </div>
-    </aside>
+    </header>
 
-    <div v-if="sidebarOpen" class="admin-backdrop" aria-hidden="true" @click="sidebarOpen = false" />
+    <div class="relative flex min-h-0 flex-1">
+      <!-- 一级图标导航：100px，保持与 UnoMap 相同的视觉节奏。 -->
+      <aside
+        v-show="showRail"
+        class="z-20 w-25 shrink-0 overflow-y-auto border-r border-light bg-primary pt-2.5"
+        aria-label="一级导航"
+      >
+        <NavMenu :items="navigation" :active-key="currentItem?.id" :label="branding.productName" :level="1" @select="selectNavigation" />
+      </aside>
 
-    <section class="admin-main">
-      <header class="admin-topbar">
-        <button class="admin-menu-button" type="button" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen">
-          <span />
-          <span />
-          <span />
-        </button>
-        <div class="admin-topbar__context">
-          <span class="admin-topbar__eyebrow">当前空间</span>
-          <select class="admin-tenant-select" :value="session.state.currentTenant?.id" aria-label="切换租户" @change="handleTenantChange">
-            <option v-for="tenant in session.state.tenants" :key="tenant.id" :value="tenant.id">
-              {{ tenant.name }}
-            </option>
-          </select>
-        </div>
-        <div class="admin-topbar__account">
-          <div class="admin-avatar">{{ session.state.user?.displayName.slice(0, 1) }}</div>
-          <div class="admin-account-copy">
-            <strong>{{ session.state.user?.displayName }}</strong>
-            <span>{{ session.state.user?.email }}</span>
-          </div>
-          <button class="admin-signout" type="button" @click="signOut">退出登录</button>
-        </div>
-      </header>
+      <!-- 二级菜单：仅当一级项包含子项时出现。 -->
+      <aside
+        v-show="showRail && hasSubmenu"
+        class="z-10 w-45 shrink-0 overflow-y-auto border-r border-light bg-primary py-2.5"
+        aria-label="二级导航"
+      >
+        <div class="mb-1 px-3 text-[11px] font-600 uppercase tracking-wide text-tertiary">{{ currentItem?.title }}</div>
+        <NavMenu :items="submenu" :label="currentItem?.title || '二级导航'" :level="2" @navigate="selectedIndex = -1" />
+      </aside>
 
-      <main class="admin-content">
+      <!-- 窄屏抽屉的遮罩，点击后收起侧边栏。 -->
+      <div v-if="!wideViewport && menuVisible" class="absolute inset-0 z-10 bg-slate-900/30" aria-hidden="true" @click="menuVisible = false" />
+
+      <section class="min-w-0 flex-1 overflow-auto">
         <RouterView />
-      </main>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.admin-layout {
-  display: flex;
-  min-height: 100vh;
-  color: #18323a;
-  background: #f5f9f8;
-}
-
-.admin-sidebar {
-  display: flex;
-  position: fixed;
-  z-index: 20;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  flex-direction: column;
-  width: 248px;
-  padding: 24px 16px 18px;
-  color: #d9eeeb;
-  background: #143a3d;
-}
-
-.admin-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 10px 28px;
-}
-
-.admin-brand__mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 10px;
-  color: #143a3d;
-  background: #f3c969;
-  font-weight: 900;
-}
-
-.admin-brand strong,
-.admin-brand span {
-  display: block;
-}
-
-.admin-brand strong {
-  color: #fff;
-  font-size: 15px;
-}
-
-.admin-brand div span {
-  margin-top: 3px;
-  color: #9fc0bc;
-  font-size: 11px;
-}
-
-.admin-nav {
-  display: grid;
-  gap: 6px;
-}
-
-.admin-nav__group {
-  display: grid;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.admin-nav__label {
-  padding: 8px 12px 5px;
-  color: #7fa8a4;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.admin-nav__item {
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  padding: 0 12px;
-  border-radius: 8px;
-  color: #c9e2df;
-  font-size: 14px;
-  text-decoration: none;
-}
-
-.admin-nav__item:hover,
-.admin-nav__item--active {
-  color: #fff;
-  background: #1e5354;
-}
-
-.admin-nav__item--active {
-  box-shadow: inset 3px 0 #f3c969;
-}
-
-.admin-nav__item--child {
-  margin-left: 8px;
-  color: #a9cbc7;
-}
-
-.admin-sidebar__footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: auto;
-  padding: 16px 10px 0;
-  border-top: 1px solid rgb(159 192 188 / 20%);
-  color: #8db2ae;
-  font-size: 11px;
-}
-
-.admin-main {
-  display: flex;
-  width: calc(100% - 248px);
-  min-width: 0;
-  min-height: 100vh;
-  margin-left: 248px;
-  flex-direction: column;
-}
-
-.admin-topbar {
-  display: flex;
-  position: sticky;
-  z-index: 10;
-  top: 0;
-  min-height: 72px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 0 34px;
-  border-bottom: 1px solid #dfeaea;
-  background: rgb(255 255 255 / 92%);
-  backdrop-filter: blur(12px);
-}
-
-.admin-topbar__context,
-.admin-topbar__account {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.admin-topbar__eyebrow,
-.admin-account-copy span {
-  color: #7d9296;
-  font-size: 11px;
-}
-
-.admin-tenant-select {
-  min-height: 34px;
-  max-width: 200px;
-  padding: 0 30px 0 10px;
-  border: 0;
-  color: #18323a;
-  background: transparent;
-  font: inherit;
-  font-weight: 700;
-}
-
-.admin-avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 50%;
-  color: #143a3d;
-  background: #f3c969;
-  font-weight: 800;
-}
-
-.admin-account-copy {
-  display: grid;
-  gap: 2px;
-}
-
-.admin-account-copy strong {
-  font-size: 13px;
-}
-
-.admin-signout {
-  margin-left: 10px;
-  padding: 6px 0 6px 10px;
-  border: 0;
-  border-left: 1px solid #d9e5e5;
-  color: #6d8086;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-}
-
-.admin-signout:hover {
-  color: #b42318;
-}
-
-.admin-content {
-  width: min(100%, 1280px);
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 34px;
-}
-
-.admin-menu-button,
-.admin-backdrop {
-  display: none;
-}
-
-@media (max-width: 860px) {
-  .admin-sidebar {
-    transform: translateX(-100%);
-    transition: transform 160ms ease;
-  }
-
-  .admin-sidebar--open {
-    transform: translateX(0);
-  }
-
-  .admin-backdrop {
-    display: block;
-    position: fixed;
-    z-index: 15;
-    inset: 0;
-    background: rgb(20 58 61 / 36%);
-  }
-
-  .admin-main {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .admin-menu-button {
-    display: grid;
-    width: 36px;
-    height: 36px;
-    align-content: center;
-    gap: 4px;
-    padding: 8px;
-    border: 1px solid #d9e5e5;
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-  }
-
-  .admin-menu-button span {
-    display: block;
-    height: 2px;
-    border-radius: 2px;
-    background: #18323a;
-  }
-
-  .admin-topbar {
-    padding: 0 20px;
-  }
-
-  .admin-content {
-    padding: 24px 20px;
-  }
-}
-
-@media (max-width: 620px) {
-  .admin-topbar__eyebrow,
-  .admin-account-copy,
-  .admin-signout {
-    display: none;
-  }
-
-  .admin-topbar__context {
-    margin-right: auto;
-  }
-
-  .admin-topbar {
-    gap: 10px;
-  }
-}
-</style>

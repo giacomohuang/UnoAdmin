@@ -1,24 +1,38 @@
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import type { AuthPort, AuthSession } from '@unoadmin/core'
+import type { AccountId, AuthPort, AuthSession, LegalEntityId, TenantId } from '@unoadmin/core'
 import { getGeneratedRouteRecords } from '@unoadmin/vite-plugins/routes-generator'
 import { createAdminSession } from '../app-session'
 import { installRouterGuards } from '../router/guards'
 
-/** Local fake replaces the deleted mock adapter so session tests stay offline. */
+/** 本地测试替身，覆盖集团租户（一个租户 + 两个经营主体）的会话形态。 */
 const sessionFixture: AuthSession = {
-  user: {
-    id: 'user-001' as AuthSession['user']['id'],
-    username: 'lin.wei',
-    displayName: '林薇',
-    email: 'lin.wei@example.com',
+  account: {
+    id: 'acc-001' as AccountId,
+    username: 'chen.yu',
+    displayName: '陈宇',
+    email: 'chen.yu@example.com',
+    phone: '',
     status: 'active',
-    roleNames: ['平台管理员'],
+    tenantId: 'tenant-holding' as TenantId,
+    dataScope: 'tenant',
+    platformAdmin: false,
+    legalEntityIds: ['le-hq' as LegalEntityId],
+    orgIds: [],
+    roleIds: [],
+    roleNames: ['集团管理员'],
+    legalEntityNames: ['集团总部', '华东公司']
   },
   permissions: ['*'],
-  tenants: [],
-  currentTenantId: null,
+  tenants: [{ id: 'tenant-holding' as TenantId, name: '汉唐控股集团', code: 'HANTANG', mode: 'group', plan: 'enterprise', contact: '', status: 'active' }],
+  currentTenantId: 'tenant-holding' as TenantId,
+  legalEntities: [
+    { id: 'le-hq' as LegalEntityId, tenantId: 'tenant-holding' as TenantId, parentId: '', type: 'GROUP', name: '集团总部', code: 'HT-HQ', address: '', status: 'active' },
+    { id: 'le-east' as LegalEntityId, tenantId: 'tenant-holding' as TenantId, parentId: 'le-hq', type: 'COMPANY', name: '华东公司', code: 'HT-EAST', address: '', status: 'active' }
+  ],
+  currentLegalEntityId: 'le-hq' as LegalEntityId,
+  dataScope: 'tenant'
 }
 const testAuth: AuthPort = {
   async signIn() {
@@ -27,22 +41,18 @@ const testAuth: AuthPort = {
   async restore() {
     return sessionFixture
   },
-  async signOut() {},
+  async signOut() {}
 }
 
-/** Keep the route contract aligned with the exclusions in vite.config.ts. */
+/** 与 vite.config.ts 中的排除规则保持一致。 */
 const routeExcludePatterns = ['**/components', 'Layout.vue'] as const
 
 describe('generated application route contract', () => {
   it('contains base package pages', () => {
     const routeRecords = getGeneratedRouteRecords({
       layoutDir: '/layout.vue',
-      // Reuse the same Gitignore-style filters as the Vite plugin configuration.
       exclude: routeExcludePatterns,
-      routeRoots: [
-        // The application package resolves its generated route roots from sibling packages.
-        { directory: '../admin-base/src/views', basePath: '' },
-      ],
+      routeRoots: [{ directory: '../admin-base/src/views', basePath: '' }]
     })
 
     const routePaths: string[] = []
@@ -54,7 +64,9 @@ describe('generated application route contract', () => {
     }
     collectPaths(routeRecords)
 
-    expect(routePaths).toContain('/system/users')
+    expect(routePaths).toContain('/system/accounts')
+    expect(routePaths).toContain('/system/entities')
+    expect(routePaths).toContain('/system/organizations')
     expect(routePaths).not.toContain('/layout')
   })
 
@@ -64,35 +76,53 @@ describe('generated application route contract', () => {
       routes: [
         { path: '/signin', name: 'signin', component: { template: '<div />' } },
         { path: '/403', name: 'forbidden', component: { template: '<div />' } },
-        { path: '/private', name: 'private', component: { template: '<div />' }, meta: { permission: 'private:read' } },
-      ],
+        { path: '/private', name: 'private', component: { template: '<div />' }, meta: { permission: 'private:read' } }
+      ]
     })
-    const state = { user: null as { id: string } | null }
+    const state = { account: null as { id: string } | null }
     const session = {
       state,
-      can: () => false,
+      can: () => false
     } as never
     installRouterGuards(router, session)
 
     await router.push('/private')
     expect(router.currentRoute.value.name).toBe('signin')
 
-    state.user = { id: 'user-1' }
+    state.account = { id: 'acc-1' }
     await router.push('/private')
     expect(router.currentRoute.value.name).toBe('forbidden')
   })
 
-  // Re-entering the workspace after logout must restore the session before routing.
   it('restores the session after sign-out', async () => {
-    const session = createAdminSession({
-      auth: testAuth,
-    })
+    const session = createAdminSession({ auth: testAuth })
 
     await session.initialize()
     await session.signOut()
-    expect(session.state.user).toBeNull()
+    expect(session.state.account).toBeNull()
 
     await session.signIn()
-    expect(session.state.user?.username).toBe('lin.wei')
+    expect(session.state.account?.username).toBe('chen.yu')
+    expect(session.state.currentLegalEntity?.name).toBe('集团总部')
+  })
+
+  it('limits entity access by data scope', async () => {
+    const session = createAdminSession({ auth: testAuth })
+    await session.initialize()
+
+    // 租户级范围可访问全部主体。
+    expect(session.canAccessEntity('le-east')).toBe(true)
+
+    const entityScoped = createAdminSession({
+      auth: {
+        ...testAuth,
+        async restore() {
+          return { ...sessionFixture, dataScope: 'entity' as const }
+        }
+      }
+    })
+    await entityScoped.initialize()
+    expect(entityScoped.canAccessEntity('le-hq')).toBe(true)
+    expect(entityScoped.canAccessEntity('le-south')).toBe(false)
   })
 })

@@ -1,140 +1,53 @@
-:root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #18323a;
-  background: #f5f9f8;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* 全局重置保持最小化：颜色、间距与组件外观统一交给 UnoUI 语义类。 */
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
+/* 细滚动条与 UnoMap 管理端保持一致，避免内容区出现系统默认粗条。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
-button,
-input,
-select {
-  font: inherit;
+*:hover {
+  scrollbar-color: rgb(0 0 0 / 16%) transparent;
 }
 
-.signin-page,
-.state-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
-  background: #143a3d;
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.signin-card {
-  display: grid;
-  width: min(100%, 430px);
-  gap: 14px;
-  padding: 42px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 24px 60px rgb(0 0 0 / 18%);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.signin-mark {
-  display: grid;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  border-radius: 12px;
-  color: #143a3d;
-  background: #f3c969;
-  font-size: 22px;
-  font-weight: 900;
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: transparent;
 }
 
-.signin-kicker {
-  color: #0f766e;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.signin-card h1,
-.state-page h1 {
-  margin: 0;
-  font-size: 30px;
-}
-
-.signin-card p,
-.state-page p {
-  margin: 0;
-  color: #6d8086;
-  line-height: 1.6;
-}
-
-.signin-field {
-  display: grid;
-  gap: 6px;
-  color: #3c555b;
-  font-size: 13px;
-}
-
-.signin-field input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #c9d6d8;
-  border-radius: 8px;
-  font: inherit;
-}
-
-.signin-field input:focus {
-  border-color: #0f766e;
-  outline: none;
-}
-
-.signin-error {
-  color: #b42318;
-  font-size: 13px;
-}
-
-.signin-submit {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.signin-card small {
-  color: #84979a;
-  font-size: 12px;
-}
-
-.state-page {
-  align-content: center;
-  justify-items: center;
-  color: #fff;
-  text-align: center;
-}
-
-.state-page__code {
-  color: #f3c969;
-  font-size: 80px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.state-page h1 {
-  margin-top: 18px;
-}
-
-.state-page .base-button {
-  margin-top: 12px;
-  color: #143a3d;
-  background: #f3c969;
-  text-decoration: none;
-}
-
-@media (max-width: 520px) {
-  .signin-card {
-    padding: 30px 24px;
-  }
+*:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(0 0 0 / 16%);
 }

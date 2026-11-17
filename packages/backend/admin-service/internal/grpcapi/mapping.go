@@ -10,15 +10,15 @@ import (
 	"github.com/unoadmin/admin-service/internal/domain"
 )
 
-// toProtoUser 把领域用户转换为 gRPC 消息。
-func toProtoUser(user domain.User) *pb.User {
+// toProtoUser 把领域账户转换为 gRPC 的 User 消息。
+func toProtoUser(account domain.Account) *pb.User {
 	return &pb.User{
-		Id:          user.ID,
-		Username:    user.Username,
-		DisplayName: user.DisplayName,
-		Email:       user.Email,
-		Status:      user.Status,
-		RoleNames:   user.RoleNames,
+		Id:          account.ID,
+		Username:    account.Username,
+		DisplayName: account.DisplayName,
+		Email:       account.Email,
+		Status:      account.Status,
+		RoleNames:   account.RoleNames,
 	}
 }
 

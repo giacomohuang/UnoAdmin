@@ -16,8 +16,9 @@ import (
 // jwtClaims 是令牌中携带的自定义声明与标准声明。
 // 权限不写入令牌，每次校验时从数据库重新加载，避免已撤销权限继续生效。
 type jwtClaims struct {
-	UserID   string `json:"uid"`
-	TenantID string `json:"tid"`
+	AccountID     string `json:"uid"`
+	TenantID      string `json:"tid"`
+	LegalEntityID string `json:"eid"`
 	jwt.RegisteredClaims
 }
 
@@ -46,8 +47,9 @@ func (p *JWT) Issue(_ context.Context, claims domain.Claims) (string, error) {
 	now := time.Now()
 	expiresAt := now.Add(p.ttl)
 	data := jwtClaims{
-		UserID:   claims.UserID,
-		TenantID: claims.TenantID,
+		AccountID:     claims.AccountID,
+		TenantID:      claims.TenantID,
+		LegalEntityID: claims.LegalEntityID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        tokenID,
 			Issuer:    "unoadmin-admin-service",
@@ -80,11 +82,12 @@ func (p *JWT) Verify(ctx context.Context, raw string) (*domain.Claims, error) {
 	}
 
 	return &domain.Claims{
-		UserID:    data.UserID,
-		TenantID:  data.TenantID,
-		TokenID:   data.ID,
-		IssuedAt:  data.IssuedAt.Time,
-		ExpiresAt: data.ExpiresAt.Time,
+		AccountID:     data.AccountID,
+		TenantID:      data.TenantID,
+		LegalEntityID: data.LegalEntityID,
+		TokenID:       data.ID,
+		IssuedAt:      data.IssuedAt.Time,
+		ExpiresAt:     data.ExpiresAt.Time,
 	}, nil
 }
 

@@ -17,6 +17,7 @@ type authServiceAPI interface {
 	Restore(ctx context.Context, raw string) (domain.AuthSession, error)
 	SignOut(ctx context.Context, raw string, refreshToken string) error
 	SwitchTenant(ctx context.Context, raw string, refreshToken string, tenantID string) (domain.TokenPair, error)
+	SwitchLegalEntity(ctx context.Context, raw string, refreshToken string, entityID string) (domain.TokenPair, error)
 	Verify(ctx context.Context, raw string) (*domain.Principal, error)
 }
 
@@ -36,6 +37,12 @@ type loginResponse struct {
 type switchTenantRequest struct {
 	TenantID     string `json:"tenantId"`
 	RefreshToken string `json:"refreshToken"`
+}
+
+// switchLegalEntityRequest 是切换经营主体请求体。
+type switchLegalEntityRequest struct {
+	LegalEntityID string `json:"legalEntityId"`
+	RefreshToken  string `json:"refreshToken"`
 }
 
 // refreshRequest 是刷新访问令牌的请求体。
@@ -113,6 +120,25 @@ func (s *Server) handleSwitchTenant(c *gin.Context) {
 		return
 	}
 	pair, err := s.auth.SwitchTenant(c.Request.Context(), bearerToken(c), strings.TrimSpace(req.RefreshToken), req.TenantID)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, pair)
+}
+
+// handleSwitchLegalEntity 在租户内切换经营主体，并返回携带新主体的令牌。
+func (s *Server) handleSwitchLegalEntity(c *gin.Context) {
+	var req switchLegalEntityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, domain.ErrInvalid)
+		return
+	}
+	if strings.TrimSpace(req.LegalEntityID) == "" {
+		writeError(c, domain.ErrInvalid)
+		return
+	}
+	pair, err := s.auth.SwitchLegalEntity(c.Request.Context(), bearerToken(c), strings.TrimSpace(req.RefreshToken), req.LegalEntityID)
 	if err != nil {
 		writeError(c, err)
 		return

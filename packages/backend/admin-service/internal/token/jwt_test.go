@@ -15,8 +15,9 @@ import (
 func TestIssueThenVerifyRoundTrip(t *testing.T) {
 	provider := token.NewJWT("test-secret", time.Hour, testutil.NewBlacklist())
 	claims := domain.Claims{
-		UserID:   "user-001",
-		TenantID: "tenant-main",
+		AccountID:     "account-001",
+		TenantID:      "tenant-holding",
+		LegalEntityID: "le-east",
 	}
 
 	raw, err := provider.Issue(context.Background(), claims)
@@ -31,8 +32,8 @@ func TestIssueThenVerifyRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify() error = %v", err)
 	}
-	if got.UserID != claims.UserID || got.TenantID != claims.TenantID {
-		t.Fatalf("Verify() = %+v, want user/tenant %q/%q", got, claims.UserID, claims.TenantID)
+	if got.AccountID != claims.AccountID || got.TenantID != claims.TenantID || got.LegalEntityID != claims.LegalEntityID {
+		t.Fatalf("Verify() = %+v, want account/tenant/entity %q/%q/%q", got, claims.AccountID, claims.TenantID, claims.LegalEntityID)
 	}
 	if got.TokenID == "" {
 		t.Fatal("Verify() returned an empty token ID")
@@ -41,7 +42,7 @@ func TestIssueThenVerifyRoundTrip(t *testing.T) {
 
 func TestIssuedTokenDoesNotCarryPermissions(t *testing.T) {
 	provider := token.NewJWT("test-secret", time.Hour, testutil.NewBlacklist())
-	raw, err := provider.Issue(context.Background(), domain.Claims{UserID: "user-001"})
+	raw, err := provider.Issue(context.Background(), domain.Claims{AccountID: "user-001"})
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -61,7 +62,7 @@ func TestIssuedTokenDoesNotCarryPermissions(t *testing.T) {
 
 func TestVerifyRejectsTamperedToken(t *testing.T) {
 	provider := token.NewJWT("test-secret", time.Hour, testutil.NewBlacklist())
-	raw, err := provider.Issue(context.Background(), domain.Claims{UserID: "user-001"})
+	raw, err := provider.Issue(context.Background(), domain.Claims{AccountID: "user-001"})
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -75,7 +76,7 @@ func TestVerifyRejectsTamperedToken(t *testing.T) {
 func TestVerifyRejectsRevokedToken(t *testing.T) {
 	blacklist := testutil.NewBlacklist()
 	provider := token.NewJWT("test-secret", time.Hour, blacklist)
-	raw, err := provider.Issue(context.Background(), domain.Claims{UserID: "user-001"})
+	raw, err := provider.Issue(context.Background(), domain.Claims{AccountID: "user-001"})
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -94,7 +95,7 @@ func TestVerifyRejectsRevokedToken(t *testing.T) {
 
 func TestVerifyRejectsExpiredToken(t *testing.T) {
 	provider := token.NewJWT("test-secret", -time.Hour, testutil.NewBlacklist())
-	raw, err := provider.Issue(context.Background(), domain.Claims{UserID: "user-001"})
+	raw, err := provider.Issue(context.Background(), domain.Claims{AccountID: "user-001"})
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}

@@ -1,12 +1,12 @@
 import type { AdminSession } from '@unoadmin/core'
 import type { Router } from 'vue-router'
 
-/** Install the application-level auth and permission boundary around generated routes. */
+/** 应用级登录与权限边界，包裹自动生成的路由表。 */
 export function installRouterGuards(router: Router, session: AdminSession) {
   router.beforeEach((to) => {
-    // Auth targets stay path-based so generated route names can change with namePrefix.
+    // 登录页按路径判断，生成的路由名会随 namePrefix 变化。
     if (to.path === '/signin') return true
-    if (!session.state.user) return { path: '/signin', query: { redirect: to.fullPath } }
+    if (!session.state.account) return { path: '/signin', query: { redirect: to.fullPath } }
 
     const requiredPermission = to.meta.permission
     if (typeof requiredPermission !== 'string' || session.can(requiredPermission)) return true

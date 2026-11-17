@@ -1,477 +1,163 @@
-# UnoAdmin 前端架构设计
+# UnoAdmin 前端架构
 
-> 状态：实现前设计稿
+> 技术基线：Vue 3、TypeScript、Vite、Vue Router、Pinia、UnoCSS + UnoUI、pnpm workspace
 >
-> 技术基线：Vue 3、TypeScript、Vite、Vue Router、Pinia、pnpm workspace
->
-> 适用范围：管理系统前端，以及后续需要复用基础管理能力的其他项目
+> 领域模型见 [multi-tenant-model.md](multi-tenant-model.md)。
 
-## 1. 目标与结论
+## 1. 结论
 
-系统采用“应用负责组装，package 负责能力”的 monorepo 架构：
+采用「应用负责组装，package 负责能力」的 monorepo 结构：
 
-- `packages/frontend/admin-app` 是一个具体可部署的单页应用，只负责启动、环境配置、Router 创建、服务适配和业务 package 注册。
-- `@unoadmin/admin-base` 是可复用的基础功能包，包含 Layout、用户、权限、角色、租户等基础页面、路由和页面级交互。
-- 每个业务域独立为一个 `@unoadmin/domain-*` package，通过统一模块协议接入管理端。
-- `@unoadmin/core` 提供稳定的类型、上下文合同和服务端口；应用壳负责会话与上下文实现，各业务通过自身 composable 读取所需能力。
-- `routes-generator` 是统一的路由生成入口，扫描应用和各 package 的约定目录，生成 `virtual:router`。
-- package 之间通过公开 API 和依赖注入协作，不通过相对路径穿透对方 `src` 目录。
+- `admin-app` 是唯一可部署的 SPA，只负责启动、环境配置、路由创建、服务适配与模块注册。
+- `admin-base` 是可复用的基础管理模块，包含 Layout、导航、工作台与租户/主体/组织/账户/角色/权限页面。
+- `core` 只放 TypeScript 合同：实体、服务端口、会话契约与注入令牌，不依赖 Vue 与具体 UI 库。
+- `routes-generator` 扫描各 package 的 `src/views`，生成 `virtual:router`。
+- 所有 UI 统一使用 **UnoUI**（`@mcistudio/unoui-vue`），样式由 UnoCSS 原子类与语义色承载。
 
-核心判断是：基础功能包应当是“可安装的能力模块”，而不是另一个拥有自己的 `main.ts`、Router 单例和环境变量的应用。只有应用壳拥有应用上下文组装权；整个部署产物只有一个 SPA 入口。
-
-## 2. 推荐目录结构
+## 2. 目录结构
 
 ```text
-UnoAdmin/
-├── packages/
-│   ├── frontend/
-│   │   ├── admin-app/                 # 唯一可部署的 SPA 应用壳
-│   │   │   ├── src/
-│   │   │   │   ├── main.ts             # 应用启动入口
-│   │   │   │   ├── app.ts              # 创建 App、注册模块和插件
-│   │   │   │   ├── router/
-│   │   │   │   │   ├── index.ts        # 创建唯一 Router 实例
-│   │   │   │   │   └── guards.ts       # 应用级登录/权限守卫
-│   │   │   │   ├── adapters/           # 后端 API、存储、上传等适配器
-│   │   │   │   ├── config/             # 环境变量解析和应用配置
-│   │   │   │   └── modules.ts          # base + 业务域模块清单
-│   │   ├── core/                       # TypeScript 合同、基础类型和 HTTP 客户端
-│   │   ├── admin-base/                 # Layout、基础页面和业务上下文 composable
-│   │   │   └── src/views/              # 基础包的自动路由页面
-│   │   ├── domain-xxx/                 # 业务域 package，按实际域命名
-│   │   │   └── src/views/              # 业务域的自动路由页面
-│   │   ├── domain-yyy/
-│   │   └── vite-plugins/               # Vite 构建插件
-│
-├── docs/
-├── package.json
-├── pnpm-workspace.yaml
-└── pnpm-lock.yaml
+packages/
+├── backend/admin-service/            # Go + Gin + MongoDB + Redis
+└── frontend/
+    ├── admin-app/                    # 唯一可部署 SPA
+    │   ├── src/main.ts               # 组装 UnoUI、路由、会话与服务
+    │   ├── src/app-session.ts        # 租户 / 经营主体会话状态
+    │   ├── src/adapters/             # REST、令牌、上下文头
+    │   ├── src/router/               # 生成路由 + 守卫
+    │   ├── src/views/                # 登录、403、404
+    │   ├── uno.config.ts             # presetUnoUI + 内容扫描
+    │   └── vite.config.ts            # UnoCSS、路由生成、依赖预构建
+    ├── admin-base/                   # 基础管理模块
+    │   ├── src/components/           # PageHeader、NavMenu、ContextSwitcher、树组件
+    │   ├── src/composables/          # useAdminBaseContext / Services
+    │   └── src/views/                # Layout、Dashboard、System/*
+    ├── core/                         # 合同与类型
+    └── vite-plugins/routes-generator/
 ```
 
-应用壳使用 `@unoadmin/admin-app`，可复用能力包命名为 `@unoadmin/admin-base`。应用壳与基础能力包位于同一个 `packages/frontend` workspace 下，但只有应用壳负责最终部署。
+## 3. 模块协议
 
-根工作区只纳入前端 package：
-
-```yaml
-packages:
-  - packages/frontend/*
-```
-
-如果未来需要多个应用，可以增加 `packages/frontend/tenant-app`、`packages/frontend/ops-app` 等，它们都可以复用 `@unoadmin/admin-base`，但不应反向成为基础包的依赖。
-
-每个 package 在自己的 `tsconfig.json` 中维护完整编译配置。这样 package 可以独立复制、发布和复用，不需要依赖 workspace 内的配置包；应用壳的 Vite、Vitest、Playwright 和 TypeScript 配置也继续由 `packages/frontend/admin-app` 自己管理。
-
-## 3. Package 职责和依赖方向
-
-### 3.1 `@unoadmin/core`
-
-纯 TypeScript 包，禁止依赖 Vue、Pinia、Vue Router、具体 UI 库和具体后端客户端。它负责定义跨应用都需要理解的合同，并提供不绑定后端的 HTTP 客户端：
-
-- `User`、`Role`、`Permission`、`Tenant` 等领域基础模型。
-- `PermissionCode`、`PermissionSet`、`TenantId` 等标识类型。
-- `AuthPort`、`UserService`、`RoleService`、`PermissionService`、`TenantService` 等服务端口。
-- `AdminModule`、`NavigationItem`、`PermissionDefinition` 等模块协议。
-- `HttpClient`、`HttpClientOptions` 和 `createHttpClient` 等网络基础设施。
-- 统一错误类型、分页查询参数、分页结果、排序和过滤模型。
-- 当前租户、平台作用域、租户作用域的上下文合同。
-
-`createHttpClient` 基于 `ky` 提供 Fetch 能力，并通过 options 注入 API 地址、认证凭证和租户上下文。这样基础功能包可以接入 REST、GraphQL、BFF 或测试内存服务，而不必重写页面。
-
-### 3.2 应用会话与上下文
-
-共享合同和注入 token 位于 `core`，会话实现位于 `admin-app/src/app-session.ts`。应用壳负责：
-
-- 创建和持有当前登录会话。
-- 创建权限查询器，例如 `can('user:read')`、`require('tenant:manage')`。
-- 持有当前租户、可选租户和租户切换状态。
-- 创建模块注册表，并分别提供会话、品牌、模块和服务上下文。
-- 创建路由守卫需要的会话接口。
-- 把存储、认证、租户上下文等外部能力作为 adapter 注入。
-
-`admin-base` 使用自己的 `useAdminBaseContext`、`useAdminBaseServices`，每个 `domain-*` 也只定义自己的服务 composable，例如 `useFeatureServices`。业务之间不共享泛化的全局对象。
-
-### 3.3 `@unoadmin/admin-base`
-
-可发布的基础管理能力包，依赖 `core`，可以使用 `core` 的 HTTP 抽象，但不能依赖任何 `domain-*` package。内容包括：
-
-- Layout、侧边导航、顶部栏、面包屑、错误页和权限兜底页面。
-- 用户列表、用户详情/编辑、用户状态和用户角色配置。
-- 权限列表、权限树和权限详情。
-- 角色列表、角色授权和角色成员管理。
-- 租户列表、租户详情、租户切换和租户作用域展示。
-- 基础模块的路由、导航项、权限定义和服务 port。
-- 仅暴露 admin-base 所需能力的 `useAdminBaseContext` 和 `useAdminBaseServices` composable。
-
-基础页面只依赖 `BaseServices`，不绑定后端 URL、DTO 命名和认证实现。应用通过 `createAdminBaseModule({ services, branding, features })` 配置它。
-
-### 3.4 `@unoadmin/domain-*`
-
-每个业务域一个 package，例如 `@unoadmin/domain-orders`、`@unoadmin/domain-assets`。每个业务包负责自己的：
-
-- 页面、局部组件、API adapter 和页面状态。
-- 路由、导航、权限定义和审计事件声明。
-- 该域的 DTO 到 UI model 的转换。
-- 该域的测试和 mock 数据。
-
-业务域可以依赖 `core`，并使用 `core` 提供的 HTTP 抽象，不能依赖另一个业务域的内部实现，也不能导入 admin-base 的私有页面。每个业务域通过自己的服务 composable 读取应用注入的能力。跨域共用的合同下沉到 `core`，强管理系统语义的组件放到 `admin-base`。
-
-### 3.5 `packages/frontend/admin-app`
-
-应用壳是唯一的组合根，负责：
-
-- 创建 Vue App、Pinia 和 Router。
-- 解析应用配置。
-- 实现 `AuthPort`、`UserService`、`TenantService` 等后端适配器。
-- 注册 `admin-base` 和业务域模块。
-- 配置全局错误处理、埋点、国际化和主题。
-- 生成最终的生产构建。
-
-应用壳可以依赖所有前端 package；任何可复用 package 都不能依赖 `packages/frontend/admin-app`。
-
-## 4. 依赖图
-
-```text
-                         ┌────────────────────┐
-                         │ packages/frontend │
-                         │     admin-app      │
-                         │  composition root  │
-                         └─────────┬──────────┘
-                                   │ 注册/组装
-              ┌────────────────────┼────────────────────┐
-              ▼                    ▼                    ▼
-     app session + adapters   admin-base pages     domain-* pages
-                                   │                    │
-                                   ▼                    ▼
-                        admin-base contexts     domain services
-                           composables               composable
-                                   │                    │
-                                   └─────────┬──────────┘
-                                             ▼
-                                       core contracts
-```
-
-强制规则：
-
-1. 依赖只能从上游能力流向下游组合，禁止循环依赖。
-2. `domain-a` 不得导入 `domain-b` 的页面、store 或 API；跨域合同放进 `core`。
-3. 页面不得直接访问 `fetch`、`axios`、`localStorage` 或具体环境变量。
-4. package 之间只使用 package name 导入，禁止相对路径穿透其他 package 的 `src`。
-5. `admin-base` 不得为了复用而反向依赖任何 `domain-*`。
-6. 业务 package 只能通过 `core` 的共享 token 和自身 composable 读取会话、服务等上下文，不得依赖 admin-app 或其他业务包的实现。
-
-可以在 CI 中使用 `dependency-cruiser`、`madge` 或 ESLint import boundary 规则检查这些约束。
-
-## 5. 统一模块协议
-
-每个可插拔功能包都导出一个模块工厂。路由页面由 `routes-generator` 从 package 的 `src/views` 约定目录自动生成；导航和权限仍必须与模块一起声明，避免新增页面后忘记注册菜单或权限。
-
-示意接口：
+模块通过 `AdminModule` 声明导航与权限：
 
 ```ts
-export interface AdminModule {
-  /** 稳定的模块标识，用于注册、审计和测试。 */
+export interface NavigationItem {
   id: string
-
-  /** 路由和权限的稳定命名空间，必须和生成器配置一致。 */
-  routeNamespace: string
-
-  /** 侧边栏和面包屑使用的导航声明。 */
-  navigation: NavigationItem[]
-
-  /** 后端权限码和前端展示元数据。 */
-  permissions: PermissionDefinition[]
-
-  /** 可选的模块初始化逻辑。 */
-  install?: (context: AdminModuleContext) => void | (() => void)
+  title: string
+  path?: string     // 二级页面路由
+  icon?: string     // 一级图标（Iconify class）
+  permission?: string
+  children?: NavigationItem[]
 }
 ```
 
-实际实现时，会话与服务上下文接口和注入 token 放在 `core` 中保持无 Vue 依赖；Vue 实现放在具体应用中。上面的协议是行为要求，不要求所有接口必须位于同一个文件。
+- 一级项通常只有 `icon`，承接二级菜单；二级项带 `path` 直接导航。
+- `useAdminBaseContext().getNavigation()` 按 `session.can(permission)` 递归过滤，空分组自动隐藏。
+- 路由页面的 `<router lang="json">` 中声明 `title` 与 `permission`，与后端权限码一致。
 
-模块协议不直接暴露 `routes: RouteRecordRaw[]`。路由文件由生成器统一扫描、校验和生成，模块工厂只提供应用所需的导航、权限、服务和扩展点。这样既保留文件约定式开发体验，也避免每个 package 手动维护一套路由数组。
+## 4. UI 规范
 
-应用组装示意：
-
-```ts
-const modules = [
-  createAdminBaseModule({
-    services: baseServices,
-    branding: appConfig.branding,
-  }),
-  createOrdersModule({ services: orderServices }),
-  createAssetsModule({ services: assetServices }),
-]
-
-const session = createAdminSession({ auth: authAdapter })
-app.provide(ADMIN_SESSION_KEY, session)
-app.provide(ADMIN_BRANDING_KEY, appConfig.branding)
-app.provide(ADMIN_MODULES_KEY, modules)
-app.provide(ADMIN_SERVICES_KEY, services)
-```
-
-模块工厂应返回稳定的公开对象。不要让应用通过深层路径导入 `admin-base/src/views/Users.vue`；如果某项目确实需要替换一个基础页面，应通过 `features`、slot、组件覆盖或明确的扩展点完成。
-
-## 6. Layout、路由和权限设计
-
-### 6.1 Router 的所有权
-
-Router 实例只在应用壳创建一次。package 不创建 `createRouter()`，不直接挂载全局守卫，也不使用隐式单例。
-
-推荐流程：
-
-1. Vite 启动时由 `routes-generator` 扫描应用和已启用 package 的页面目录。
-2. 生成器通过 `virtual:router` 暴露带有懒加载组件和路由元信息的路由表。
-3. 应用创建会话、提供品牌/模块/服务上下文，并注册所有模块。
-4. 应用使用 `virtual:router` 创建唯一 Router，并安装基础守卫。
-5. 会话根据当前登录态、租户上下文和权限集决定是否允许访问。
-6. 导航菜单由已注册模块的 navigation 声明结合权限集过滤得到。
-
-未授权页面不应依赖后端返回任意组件路径来动态 import。后端只返回权限码或菜单标识，前端只从已注册的安全模块中匹配页面。
-
-### 6.2 Layout 的职责
-
-Layout 只处理应用级布局和导航状态：
-
-- 当前路由、页面标题、面包屑和导航展开状态。
-- 当前用户、当前租户和退出登录。
-- 全局通知、错误提示和内容区域。
-- 响应式侧栏和移动端导航。
-
-Layout 不直接实现用户 CRUD、角色授权或业务域请求；这些功能属于子模块页面。
-
-### 6.3 权限模型
-
-权限码建议使用稳定、可读的资源动作格式，例如：
+### 4.1 布局
 
 ```text
-user:read
-user:write
-role:read
-role:grant
-tenant:read
-tenant:manage
-orders:read
-orders:export
+┌──────────────────────────────────────────────────────────┐
+│ 顶部栏 56px：菜单开关 + 品牌 + 面包屑 + 租户/主体切换 + 账户 │
+├──────┬───────────┬───────────────────────────────────────┤
+│ 100px│ 180px     │ 内容区（bg-secondary）                 │
+│ 图标 │ 二级菜单   │ PageHeader + 表格 / 树 / 卡片          │
+└──────┴───────────┴───────────────────────────────────────┘
 ```
 
-页面访问、菜单显示和按钮显示都复用同一个权限查询器：
+- 布局来自 UnoMap 管理端：一级图标栏 100px、二级菜单 180px、内容最小宽度 800px。
+- 窄屏（< 900px）侧边栏作为抽屉浮层，选择菜单后自动收起。
+- 租户与经营主体切换集中在顶部 `ContextSwitcher`，切换后整页刷新，避免跨上下文脏数据。
+
+### 4.2 组件约定
+
+| 场景 | 组件 |
+| --- | --- |
+| 页面标题 / 状态 / 操作 | `PageHeader` 插槽 |
+| 列表 | `Table` + `Skeleton` + `Pagination` |
+| 新建 / 编辑 | `Drawer` + `Form` + `FormItem` |
+| 选择 | `Select`（多选 + `filterable` + `collapse-tags`） |
+| 状态 | `Tag`、`Switch` |
+| 反馈 | `message`、`Alert`、`Popconfirm` |
+
+约定：
+
+- 组件使用子路径导入，例如 `import { Table } from '@mcistudio/unoui-vue/table'`。
+- 图标使用 Iconify 类名，例如 `i-lucide:plus`，不额外引入图标组件。
+- 颜色使用语义类：`bg-primary`、`text-secondary`、`border-light`、`bg-brand-50`。
+- 表单校验使用 `Form` 的 `rules` 与 `validate()`；业务错误用 `Alert` 呈现，不用浏览器弹窗。
+
+### 4.3 权限呈现三处一致
+
+菜单、路由、按钮使用同一批权限码：
 
 ```ts
-can('user:write')
-require('role:grant')
+session.can('account:create')    // 按钮显隐
+meta.permission = 'account:view' // 路由守卫
+item.permission = 'account:view' // 菜单过滤
 ```
 
-前端权限只负责导航和交互体验，不能作为安全边界。API Gateway 或后端服务必须再次验证用户、角色、租户和资源范围。
+## 5. 会话与上下文
 
-### 6.4 租户上下文
-
-租户上下文应是应用会话的一等状态，而不是散落在各页面的 `ref`：
-
-- 登录后初始化可用租户和默认租户。
-- 切换租户时清理或失效化与旧租户相关的查询缓存。
-- HTTP 客户端由应用 adapter 注入当前租户和请求上下文。
-- 所有租户级 API 明确要求 `tenantId` 或使用统一上下文，不允许页面自行拼接 Header。
-- 平台级接口和租户级接口在服务 port 层明确区分。
-- 租户切换失败时保留旧上下文，并给出可恢复的错误状态。
-
-这样可以避免“界面切换了租户，但列表仍然显示上一个租户数据”的状态泄漏。
-
-## 7. 状态和数据访问约定
-
-- Pinia store 只保存跨页面共享且具有生命周期意义的状态，例如会话、权限、租户、Layout 偏好。
-- 页面筛选条件、分页和弹窗开关默认保持在页面或 composable 内，不要把所有状态都提升到全局 store。
-- 服务端列表、详情和缓存优先使用一个查询层；如果暂时不引入 TanStack Query，也应统一封装 loading、error、refresh 和失效化逻辑。
-- API DTO 只能在 adapter 或 service 层出现，页面使用稳定的 UI model。
-- 列表刷新、删除、切换租户等操作必须明确刷新哪些查询，不能依赖全局事件总线碰运气刷新。
-- 业务数据的最终权限、租户隔离和字段脱敏由后端保证，前端只消费结果并展示状态。
-
-## 8. Vite、发布和依赖管理
-
-### 8.1 Vite 的使用边界
-
-- `packages/frontend/*-app` 使用普通 Vite application build，产出最终静态资源。
-- 可复用 package 使用 Vite library mode 或等价的库构建配置，产出 ESM、类型声明和样式入口。
-- package 内部开发可以通过 workspace symlink 使用源码，但发布消费者只能通过 `exports` 访问公开入口。
-- Vue、Vue Router、Pinia 以及选定的 UI 库应在可复用 package 中声明为 `peerDependencies`，避免项目内出现多份运行时。
-- 不把应用的 `vite.config.ts`、`import.meta.env` 或路径 alias 复制进可复用 package。
-- `packages/frontend/admin-app` 只配置一个 `index.html` 和一个 Vite application entry，不配置 MPA 多入口，也不引入 SSR。
-- `routes-generator` 在开发和生产构建阶段都生成同一个 `virtual:router`，页面组件通过动态 import 拆分为异步 chunk。
-
-package 的 `package.json` 应提供类似的公开入口：
-
-```json
-{
-  "name": "@unoadmin/admin-base",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./styles.css": "./dist/styles.css"
-  },
-  "peerDependencies": {
-    "pinia": ">=3",
-    "vue": ">=3.5",
-    "vue-router": ">=4"
-  }
+```ts
+export interface AdminSessionState {
+  ready: boolean
+  account: Account | null
+  permissions: string[]
+  tenants: Tenant[]
+  currentTenant: Tenant | null
+  legalEntities: LegalEntity[]
+  currentLegalEntity: LegalEntity | null
+  dataScope: DataScope
 }
 ```
 
-版本策略建议如下：
+- `createAdminSession()` 位于 `admin-app`，通过 `AuthPort` 适配器登录、恢复与切换。
+- 切换租户或主体时，适配器先换取新令牌，再调用 `auth/restore` 重建会话，最后整页刷新。
+- `canAccessEntity(id)` 统一判断主体访问权限：平台管理员与租户级范围放行，其余比对授权列表。
 
-- `core`、`admin-base` 使用独立 semver 版本，但在 monorepo 内通过 `workspace:` 管理。
-- 公开的 port、模块协议、权限码和路由 name 视为 API；破坏性变化必须升级 major。
-- 同一个仓库内的业务 package 可以独立发布和升级，应用通过锁文件固定版本。
-- 如果基础 package 只服务公司内部项目，也建议按照可发布包设计，先用私有 registry，避免未来提取时重做边界。
+## 6. 服务适配
 
-### 8.2 SPA 运行和部署
+`core` 定义 `BaseServices` 端口，`admin-app` 提供 REST 实现：
 
-应用使用 history 路由，Router 创建方式固定为：
+| 端口 | 方法 |
+| --- | --- |
+| `accounts` | `list` / `create` / `update` / `updateStatus` |
+| `roles` | `list` / `create` / `update` |
+| `permissions` | `list` |
+| `tenants` | `list` / `create` / `update` |
+| `legalEntities` | `list` / `create` / `update` |
+| `orgs` | `tree` / `create` / `update` |
+| `stats` | `get` |
 
-```ts
-createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: generatedRoutes,
-})
-```
+HTTP 客户端在每次请求注入 `Authorization`、`X-Tenant-Id`、`X-Legal-Entity-Id`；401 时并发请求共享一次刷新。
 
-SPA 的要求不只是 Vite 配置，还包括静态服务器配置：
+## 7. 路由生成
 
-- 任意非静态资源 URL，例如 `/users`、`/orders/list`，首次访问和刷新都必须回退到同一个 `index.html`。
-- Nginx 等服务器应配置 `try_files $uri $uri/ /index.html`；部署在子路径时，回退目标和 `base` 必须使用同一个子路径。
-- 未知前端路径由 Vue Router 的 404 路由展示，而不是由静态服务器直接返回 HTML 404。
-- 构建结果是一个可部署的 `dist/`，其中只有一个应用入口，业务页面通过异步 chunk 加载。
-- 端到端测试必须覆盖直接打开深层 URL、刷新深层 URL、未登录跳转、无权限跳转和前端 404。
+`routes-generator` 扫描 `admin-base/src/views` 与 `admin-app/src/views`：
 
-只有在部署环境无法配置 history 回退时才考虑 `createWebHashHistory`。默认不使用 hash 路由，因为它会影响 URL 规范、服务端日志和外部链接体验。
+- 文件路径即路由：`System/Accounts.vue` → `/system/accounts`；
+- 顶层页面使用 `Layout`，`<router lang="json">` 中 `layout: false` 的页面独立渲染（登录、403、404）；
+- 目录可通过 `routeMeta.json` 批量声明元数据；
+- 排除规则：`**/components`、`Layout.vue`。
 
-## 9. 路由生成插件的处理建议
+## 8. 检查
 
-`routes-generator` 采用“多路由根目录汇总、单一虚拟模块输出”的方案，成为应用内所有页面路由的唯一生成入口：
-
-- `packages/frontend/admin-app/src/views` 放应用专属页面。
-- `@unoadmin/admin-base/src/views` 放 Layout 之外的用户、权限、角色、租户页面。
-- 每个 `domain-*` package 在自己的 `src/views` 下放业务页面。
-- `components` 目录、Layout、登录页、错误页等排除项由 `exclude` 显式配置，使用 Gitignore 风格通配符；显式 `isRouter: false` 的页面仍由页面元信息关闭生成。
-- 页面 `<router lang="json">` 和目录 `routeMeta.json` 继续负责 `title`、`permission`、`routePath`、`param` 等元信息；页面可通过 `layout: false` 直接生成不依赖 Layout 的顶层路由。
-- 每个路由根目录需要明确目录、URL 前缀和 Layout 归属；路由名称前缀 `namePrefix` 可选，生成器要在构建时检查路径归属和冲突。
-
-目标配置形态如下，应用不再手写业务 `RouteRecordRaw[]`：
-
-```ts
-routesGeneratorPlugin({
-  layoutDir: resolvePackageView('@unoadmin/admin-base', 'Layout.vue'),
-  exclude: ['**/components', 'Layout.vue', 'Signin.vue', '403.vue', '404.vue'],
-  routeRoots: [
-    { namePrefix: 'admin-base', packageName: '@unoadmin/admin-base', directory: 'src/views', basePath: '' },
-    { namePrefix: 'orders', packageName: '@unoadmin/domain-orders', directory: 'src/views', basePath: '/orders' },
-    { namePrefix: 'assets', packageName: '@unoadmin/domain-assets', directory: 'src/views', basePath: '/assets' },
-    { namePrefix: 'app', packageName: '@unoadmin/admin-app', directory: 'src/views', basePath: '' },
-  ],
-})
-```
-
-实现时应扩展现有插件的 `layoutDir` 配置，使其支持 `routeRoots`；默认行为仍可保留为扫描当前应用的 `src/views`，保证迁移过程兼容。插件最终应输出：
-
-```ts
-declare module 'virtual:router' {
-  import type { RouteRecordRaw } from 'vue-router'
-
-  const routes: RouteRecordRaw[]
-  export default routes
-}
-```
-
-在 monorepo 开发模式下，`routeRoots` 可以指向 workspace package 的源码目录。发布到 registry 的 package 则应在构建时生成并发布自己的 route manifest/route entry，由同一个插件消费；消费者不需要复制基础包页面，也不需要手动导入单个页面组件。两种来源都必须经过同一套路径、权限、命名和冲突校验。
-
-应用侧只保留登录页、全局 404/403、回调页等特殊手工路由。结构性排除（组件目录、Layout、一组保留页面）应写入 `exclude` 并复用 `.gitignore` 规则；单个页面需要避免生成时，也可声明 `isRouter: false`，防止同一个 URL 同时出现在自动路由和手工路由中。
-
-需要自动生成但不进入布局壳的页面应声明 `layout: false`。根目录 `Index.vue` 还必须显式配置 `routePath: "/"`；生成根路径后，应用侧不能继续保留同一个 `/` 手工重定向。Layout 页面和 standalone 页面不得声明同一路径，生成器会在构建期报错。
-
-## 10. 测试和质量门禁
-
-每个 package 都应在自己的边界内测试，应用再做一次组合验证：
-
-- `core`：类型合同、权限码、分页模型、租户上下文的纯函数测试。
-- `admin-app`：登录态恢复、权限守卫、租户切换、上下文注入和模块注册测试。
-- `admin-base`：用户、权限、角色、租户的页面行为测试，以及无权限和空数据状态。
-- `domain-*`：业务域页面、服务 adapter 和模块声明测试。
-- `packages/frontend/admin-app`：路由组合、登录跳转、真实 API mock、关键端到端流程。
-
-最低 CI 门禁建议：
-
-```bash
-pnpm install --frozen-lockfile
-pnpm lint
+```sh
 pnpm typecheck
-pnpm test:unit
+pnpm test
 pnpm build
-pnpm test:e2e
+pnpm lint
+
+cd packages/backend/admin-service && go test ./...
 ```
 
-还应加入以下结构检查：
+## 9. 新增业务域
 
-- 依赖图无环。
-- package 只能从公开 exports 导入。
-- 所有模块的 route、navigation、permission 声明完整。
-- 生产构建中 Vue 等 peer dependency 没有被重复打包。
-- `virtual:router` 在开发和生产构建中都能包含基础包、业务包和应用专属页面。
-- 关键的 390px/移动端视口、权限拒绝、租户切换、上传失败和 SPA 深链接刷新流程有浏览器验证。
-
-## 11. 分阶段落地计划
-
-### 阶段一：建立边界
-
-1. 将应用壳放入 `packages/frontend/admin-app`，包名使用 `@unoadmin/admin-app`。
-2. 更新 workspace、TypeScript project references、lint、format 和测试脚本。
-3. 在 `core` 定义 port、HTTP 客户端、模块合同和上下文接口；在应用壳实现会话与上下文提供，在各业务中定义窄化 composable。
-4. 统一 Vue、Router、Pinia 和 UI 组件库版本，避免每个 package 各自选择。
-
-### 阶段二：提取基础能力
-
-1. 实现 `@unoadmin/admin-base` 的 Layout 和基础模块。
-2. 将用户、权限、角色、租户页面迁移到基础包。
-3. 删除基础页面对应用环境变量、Router 单例和具体后端客户端的直接依赖。
-4. 为基础包增加一个最小消费者应用，验证它能脱离主应用运行。
-
-### 阶段三：接入业务域
-
-1. 每次只迁移一个业务域，创建对应 `domain-*` package。
-2. 为每个域补齐模块 ID、路由、导航、权限和 service adapter。
-3. 从应用组合根注册模块，检查业务包之间没有反向依赖。
-4. 将强管理系统语义的重复组件下沉到 `admin-base`，业务专属组件继续留在对应域。
-
-### 阶段四：发布和复用验证
-
-1. 为 `admin-base` 配置库构建、声明文件和 exports，并确保各业务 composable 只依赖 `core` 合同。
-2. 使用私有 registry 或 changesets 管理版本和变更日志。
-3. 新建第二个最小消费者应用，验证基础包可以复用并支持不同品牌、API 地址和权限模型。
-4. 通过组合测试、构建产物检查和浏览器流程验证后，再移除旧的应用内重复实现。
-
-## 12. 首版验收标准
-
-- 新建一个应用时，只需实现 adapter、配置 Layout/品牌信息并注册模块，就能获得用户、权限、角色、租户基础能力。
-- `@unoadmin/admin-base` 不依赖任何 `domain-*`，并且没有硬编码 API URL、Token 存储方式或租户 Header。
-- 新增业务域时，不修改 `admin-base` 内部源码，只新增一个 `domain-*` package 和应用注册项。
-- 新增路由页面时，只需放入约定的 `src/views` 并补充页面/目录元信息，重启开发服务后即可进入 `virtual:router`。
-- 文件上传组件可以切换本地 mock、REST 上传和对象存储上传，而不修改组件源码。
-- 未授权用户不会看到对应导航，也无法通过直接 URL 进入页面；后端仍执行最终授权。
-- 切换租户后，旧租户列表和详情缓存不会继续显示在新租户上下文中。
-- package 可以独立 typecheck、test 和 build，应用可以执行一次完整组合构建。
-- 所有 package 的外部使用方式都通过 `index.ts` 和 `package.json.exports` 暴露，内部目录结构可以独立演进。
-- 应用只有一个 SPA 入口，直接访问和刷新任意合法深层 URL 都能恢复对应页面。
-
-## 13. 需要在实现前确认的产品合同
-
-架构可以先按上述边界落地，但以下内容需要和后端/API 契约一起定稿：
-
-- 权限码是资源动作模型，还是后端菜单树模型；建议优先采用资源动作模型。
-- 平台管理员是否跨租户，租户切换是否影响全部请求和缓存。
-- 用户、角色、权限和租户的唯一 ID 类型，以及删除/禁用语义。
-- 文件上传是直传对象存储、服务端中转，还是两者兼容。
-- 基础包需要支持哪些认证方式，以及 Token 刷新由谁负责。
-- 不同消费者项目是否允许覆盖基础路由、主题、文案和某些基础页面。
-
-这些属于公开合同。应先写进 `core` 的类型和测试，再开始大规模页面迁移。
+1. 新建 `packages/frontend/domain-xxx`，在 `package.json` 中声明 `@unoadmin/core` 依赖。
+2. 在 `src/views` 放页面，在 `src/index.ts` 导出 `AdminModule`（导航 + 权限）。
+3. 在 `admin-app/src/modules.ts` 注册模块，在 `vite.config.ts` 的 `routeRoots` 中追加目录。
+4. 若需要新服务，先在 `core` 增加端口，再在 `admin-app/src/adapters` 实现。

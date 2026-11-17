@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	pb "github.com/unoadmin/admin-service/gen/adminbase/v1"
+	"github.com/unoadmin/admin-service/internal/admin"
 	"github.com/unoadmin/admin-service/internal/domain"
 	"github.com/unoadmin/admin-service/internal/grpcapi"
 )
@@ -27,34 +28,38 @@ func (fakeVerifier) Verify(_ context.Context, raw string) (*domain.Principal, er
 		return nil, domain.ErrUnauthorized
 	}
 	return &domain.Principal{
-		UserID: "user-001", TenantID: "tenant-main", Permissions: []string{"user:read"},
+		AccountID: "acc-001", TenantID: "tenant-holding", LegalEntityID: "le-hq",
+		DataScope: domain.DataScopeTenant, Permissions: []string{"account:view"},
 	}, nil
 }
 
 // fakeAdmin 提供固定的查询结果。
 type fakeAdmin struct{}
 
-func (fakeAdmin) GetUser(context.Context, string) (domain.User, error) {
-	return domain.User{ID: "user-001", Username: "lin.wei", RoleNames: []string{"平台管理员"}}, nil
+func (fakeAdmin) GetAccount(context.Context, string) (domain.Account, error) {
+	return domain.Account{ID: "acc-001", Username: "lin.wei", RoleNames: []string{"平台运营管理员"}}, nil
 }
 
-func (fakeAdmin) ListUsers(_ context.Context, query domain.ListQuery) (domain.PageResult[domain.User], error) {
-	return domain.PageResult[domain.User]{
-		Items: []domain.User{{ID: "user-001", Username: "lin.wei", RoleNames: []string{"平台管理员"}}},
+func (fakeAdmin) ListAccounts(_ context.Context, _ *domain.Principal, _ domain.ListQuery) (domain.PageResult[domain.Account], error) {
+	return domain.PageResult[domain.Account]{
+		Items: []domain.Account{{ID: "acc-001", Username: "lin.wei", RoleNames: []string{"平台运营管理员"}}},
 		Total: 1,
 	}, nil
 }
 
-func (fakeAdmin) ListRoles(context.Context, domain.ListQuery) (domain.PageResult[domain.Role], error) {
-	return domain.PageResult[domain.Role]{Items: []domain.Role{{ID: "role-admin", Name: "平台管理员"}}}, nil
+func (fakeAdmin) ListRoles(context.Context, *domain.Principal, domain.ListQuery) (domain.PageResult[domain.Role], error) {
+	return domain.PageResult[domain.Role]{Items: []domain.Role{{ID: "role-admin", Name: "平台运营管理员"}}}, nil
 }
 
 func (fakeAdmin) ListPermissions(context.Context) ([]domain.Permission, error) {
-	return []domain.Permission{{ID: "p-system", Code: "system", Children: []domain.Permission{{ID: "p-user", Code: "user:read"}}}}, nil
+	return []domain.Permission{{ID: "p-system", Code: "system", Children: []domain.Permission{{ID: "p-account", Code: "account:view"}}}}, nil
 }
 
-func (fakeAdmin) ListTenants(context.Context, domain.ListQuery) (domain.PageResult[domain.Tenant], error) {
-	return domain.PageResult[domain.Tenant]{Items: []domain.Tenant{{ID: "tenant-main", Code: "HQ"}}}, nil
+func (fakeAdmin) ListTenants(context.Context, *domain.Principal, domain.ListQuery) (domain.PageResult[admin.TenantOverview], error) {
+	return domain.PageResult[admin.TenantOverview]{
+		Items: []admin.TenantOverview{{Tenant: domain.Tenant{ID: "tenant-holding", Code: "HANTANG", Mode: domain.TenantModeGroup}}},
+		Total: 1,
+	}, nil
 }
 
 // startServer 在进程内启动 gRPC 服务并返回客户端连接。
@@ -82,9 +87,12 @@ func startServer(t *testing.T) *grpc.ClientConn {
 	return conn
 }
 
-// serviceContext 附加服务间共享密钥。
+// serviceContext 附加服务间共享密钥与终端用户令牌。
 func serviceContext() context.Context {
-	return metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+serviceToken)
+	return metadata.AppendToOutgoingContext(context.Background(),
+		"authorization", "Bearer "+serviceToken,
+		"x-user-token", "Bearer user-token",
+	)
 }
 
 func TestServiceTokenInterceptorRejectsMissingToken(t *testing.T) {
@@ -101,11 +109,11 @@ func TestVerifyTokenReturnsLivePermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyToken() error = %v", err)
 	}
-	if !resp.GetValid() || resp.GetUserId() != "user-001" || resp.GetTenantId() != "tenant-main" {
-		t.Fatalf("response = %+v, want valid user-001 / tenant-main", resp)
+	if !resp.GetValid() || resp.GetUserId() != "acc-001" || resp.GetTenantId() != "tenant-holding" {
+		t.Fatalf("response = %+v, want valid acc-001 / tenant-holding", resp)
 	}
-	if len(resp.GetPermissions()) != 1 || resp.GetPermissions()[0] != "user:read" {
-		t.Fatalf("permissions = %v, want user:read", resp.GetPermissions())
+	if len(resp.GetPermissions()) != 1 || resp.GetPermissions()[0] != "account:view" {
+		t.Fatalf("permissions = %v, want account:view", resp.GetPermissions())
 	}
 }
 
@@ -115,8 +123,8 @@ func TestListUsersWithServiceToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListUsers() error = %v", err)
 	}
-	if resp.GetTotal() != 1 || len(resp.GetItems()) != 1 || resp.GetItems()[0].GetRoleNames()[0] != "平台管理员" {
-		t.Fatalf("response = %+v, want one user with role name", resp)
+	if resp.GetTotal() != 1 || len(resp.GetItems()) != 1 || resp.GetItems()[0].GetRoleNames()[0] != "平台运营管理员" {
+		t.Fatalf("response = %+v, want one account with role name", resp)
 	}
 }
 
@@ -133,8 +141,7 @@ func TestListPermissionsReturnsTree(t *testing.T) {
 
 func TestHasPermissionUsesUserToken(t *testing.T) {
 	client := pb.NewAdminBaseClient(startServer(t))
-	ctx := metadata.AppendToOutgoingContext(serviceContext(), "x-user-token", "Bearer user-token")
-	resp, err := client.HasPermission(ctx, &pb.HasPermissionRequest{Permission: "user:read"})
+	resp, err := client.HasPermission(serviceContext(), &pb.HasPermissionRequest{Permission: "account:view"})
 	if err != nil {
 		t.Fatalf("HasPermission() error = %v", err)
 	}

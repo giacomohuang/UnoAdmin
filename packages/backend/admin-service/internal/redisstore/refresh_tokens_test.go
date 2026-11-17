@@ -23,7 +23,7 @@ func newStore(t *testing.T) *redisstore.RefreshTokenStore {
 func TestRefreshTokenStoreRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	store := newStore(t)
-	session := domain.RefreshSession{UserID: "user-001", TenantID: "tenant-main"}
+	session := domain.RefreshSession{AccountID: "acc-001", TenantID: "tenant-main", LegalEntityID: "le-east"}
 
 	if err := store.Save(ctx, "token-a", session, time.Hour); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -32,7 +32,7 @@ func TestRefreshTokenStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
-	if got.UserID != session.UserID || got.TenantID != session.TenantID {
+	if got.AccountID != session.AccountID || got.TenantID != session.TenantID || got.LegalEntityID != session.LegalEntityID {
 		t.Fatalf("Get() = %+v, want %+v", got, session)
 	}
 }
@@ -44,7 +44,7 @@ func TestRefreshTokenStoreMissingAndDelete(t *testing.T) {
 	if _, err := store.Get(ctx, "missing"); err != domain.ErrNotFound {
 		t.Fatalf("Get(missing) error = %v, want ErrNotFound", err)
 	}
-	if err := store.Save(ctx, "token-b", domain.RefreshSession{UserID: "user-001"}, time.Hour); err != nil {
+	if err := store.Save(ctx, "token-b", domain.RefreshSession{AccountID: "acc-001"}, time.Hour); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 	if err := store.Delete(ctx, "token-b"); err != nil {

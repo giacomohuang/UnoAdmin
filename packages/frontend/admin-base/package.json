@@ -6,13 +6,15 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
-    },
-    "./styles.css": "./src/styles.css"
+    }
   },
   "dependencies": {
+    "@iconify/vue": "^5.0.5",
+    "@mcistudio/unoui-vue": "^1.2.7",
     "@unoadmin/core": "workspace:*"
   },
   "peerDependencies": {
+    "unocss": ">=66",
     "vue": ">=3.5",
     "vue-router": ">=4"
   },

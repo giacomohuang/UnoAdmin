@@ -38,13 +38,40 @@ func NewServer(auth authServiceAPI, admin adminServiceAPI, origins []string) *gi
 	public.POST("/auth/refresh", s.handleRefresh)
 	public.POST("/auth/logout", s.handleLogout)
 	public.POST("/auth/switch-tenant", s.handleSwitchTenant)
+	public.POST("/auth/switch-legal-entity", s.handleSwitchLegalEntity)
 
 	// 受保护路由：整组统一认证，再按路由声明权限码。
 	secured := engine.Group("/api/v1", authenticate(s.auth))
-	secured.GET("/users", requirePermission("user:read"), s.handleListUsers)
-	secured.PATCH("/users/:id/status", requirePermission("user:write"), s.handleUpdateUserStatus)
-	secured.GET("/roles", requirePermission("role:read"), s.handleListRoles)
-	secured.GET("/permissions", requirePermission(""), s.handleListPermissions)
-	secured.GET("/tenants", requirePermission("tenant:read"), s.handleListTenants)
+
+	// 工作台指标。
+	secured.GET("/stats", s.handleStats)
+
+	// 租户（采购与计费边界）。
+	secured.GET("/tenants", requirePermission("tenant:view"), s.handleListTenants)
+	secured.POST("/tenants", requirePermission("tenant:create"), s.handleCreateTenant)
+	secured.PUT("/tenants/:id", requirePermission("tenant:update"), s.handleUpdateTenant)
+
+	// 经营主体（租户内隔离单元）。
+	secured.GET("/legal-entities", requirePermission("entity:view"), s.handleListLegalEntities)
+	secured.POST("/legal-entities", requirePermission("entity:create"), s.handleCreateLegalEntity)
+	secured.PUT("/legal-entities/:id", requirePermission("entity:update"), s.handleUpdateLegalEntity)
+
+	// 组织架构（经营主体内部结构）。
+	secured.GET("/orgs", requirePermission("org:view"), s.handleListOrgs)
+	secured.POST("/orgs", requirePermission("org:create"), s.handleCreateOrg)
+	secured.PUT("/orgs/:id", requirePermission("org:update"), s.handleUpdateOrg)
+
+	// 账户（管理端登录身份）。
+	secured.GET("/accounts", requirePermission("account:view"), s.handleListAccounts)
+	secured.PATCH("/accounts/:id/status", requirePermission("account:update"), s.handleUpdateAccountStatus)
+	secured.POST("/accounts", requirePermission("account:create"), s.handleCreateAccount)
+	secured.PUT("/accounts/:id", requirePermission("account:update"), s.handleUpdateAccount)
+
+	// 角色与权限。
+	secured.GET("/roles", requirePermission("role:view"), s.handleListRoles)
+	secured.POST("/roles", requirePermission("role:create"), s.handleCreateRole)
+	secured.PUT("/roles/:id", requirePermission("role:update"), s.handleUpdateRole)
+	secured.GET("/permissions", requirePermission("permission:view"), s.handleListPermissions)
+
 	return engine
 }

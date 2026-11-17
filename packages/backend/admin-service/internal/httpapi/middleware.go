@@ -18,7 +18,7 @@ type authService interface {
 	Verify(ctx context.Context, raw string) (*domain.Principal, error)
 }
 
-// cors 处理跨域预检与响应头，允许前端携带 Authorization 与 X-Tenant-Id。
+// cors 处理跨域预检与响应头，允许前端携带 Authorization、X-Tenant-Id 与 X-Legal-Entity-Id。
 func cors(origins []string) gin.HandlerFunc {
 	allowed := make(map[string]bool, len(origins))
 	for _, origin := range origins {
@@ -30,8 +30,8 @@ func cors(origins []string) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Vary", "Origin")
 		}
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Id")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Id, X-Legal-Entity-Id")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		if c.Request.Method == http.MethodOptions {
 			// 预检直接结束，不进入路由与鉴权。
 			c.AbortWithStatus(http.StatusNoContent)
@@ -55,8 +55,14 @@ func authenticate(service authService) gin.HandlerFunc {
 			return
 		}
 
-		// X-Tenant-Id 必须与令牌中的租户一致，避免过期租户头导致越权查询。
+		// X-Tenant-Id / X-Legal-Entity-Id 必须与令牌中的上下文一致，
+		// 避免过期请求头导致跨租户或跨主体越权查询。
 		if requested := c.GetHeader("X-Tenant-Id"); requested != "" && requested != principal.TenantID {
+			abortWithError(c, domain.ErrForbidden)
+			return
+		}
+		if requested := c.GetHeader("X-Legal-Entity-Id"); requested != "" &&
+			requested != principal.LegalEntityID && !domain.CanAccessEntity(principal, requested) {
 			abortWithError(c, domain.ErrForbidden)
 			return
 		}

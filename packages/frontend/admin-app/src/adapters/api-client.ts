@@ -22,6 +22,8 @@ export interface ApiClientOptions {
   getAccessToken(): string | null
   getRefreshToken(): string | null
   getTenantId(): string | null
+  /** 当前经营主体；后端只接受令牌授权范围内的主体。 */
+  getLegalEntityId(): string | null
   onTokens(access: string, refresh?: string): void
   onAuthFailed?(): void
   fetchImpl?: typeof fetch
@@ -43,8 +45,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         ({ request }) => {
           const token = options.getAccessToken()
           const tenantId = options.getTenantId()
+          const legalEntityId = options.getLegalEntityId()
           if (token) request.headers.set('Authorization', `Bearer ${token}`)
           if (tenantId) request.headers.set('X-Tenant-Id', tenantId)
+          if (legalEntityId) request.headers.set('X-Legal-Entity-Id', legalEntityId)
           if (!request.headers.has('Accept')) request.headers.set('Accept', 'application/json')
           if (request.body && !request.headers.has('Content-Type')) {
             request.headers.set('Content-Type', 'application/json')

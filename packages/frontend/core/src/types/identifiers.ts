@@ -39,8 +39,8 @@ declare const __opaqueMarker: unique symbol
  */
 type Opaque<T, N extends string> = T & { readonly [__opaqueMarker]: N }
 
-/** Stable identifier for users. */
-export type UserId = Opaque<string, 'UserId'>
+/** Stable identifier for management accounts. */
+export type AccountId = Opaque<string, 'AccountId'>
 
 /** Stable identifier for roles. */
 export type RoleId = Opaque<string, 'RoleId'>
@@ -48,5 +48,11 @@ export type RoleId = Opaque<string, 'RoleId'>
 /** Stable identifier for permissions. */
 export type PermissionId = Opaque<string, 'PermissionId'>
 
-/** Stable identifier for tenants. */
+/** Stable identifier for tenants (purchase and isolation boundary). */
 export type TenantId = Opaque<string, 'TenantId'>
+
+/** Stable identifier for legal entities inside a tenant. */
+export type LegalEntityId = Opaque<string, 'LegalEntityId'>
+
+/** Stable identifier for organization units inside a legal entity. */
+export type OrgId = Opaque<string, 'OrgId'>

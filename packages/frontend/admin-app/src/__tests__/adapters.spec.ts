@@ -1,4 +1,4 @@
-import type { AuthSession, TenantId } from '@unoadmin/core'
+import type { AccountId, AuthSession, LegalEntityId, TenantId } from '@unoadmin/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ApiError, createApiClient, type ApiClient } from '../adapters/api-client'
@@ -19,26 +19,40 @@ function memoryStorage(): Storage {
     removeItem: (key) => data.delete(key),
     setItem: (key, value) => {
       data.set(key, value)
-    },
+    }
   }
 }
 
-/** 构造最小登录响应，供认证适配器测试使用。 */
+/** 构造最小登录响应，覆盖「集团租户 + 两个经营主体」上下文。 */
 function loginResponse(): AuthSession & { token: string; refreshToken: string } {
   return {
     token: 'access-1',
     refreshToken: 'refresh-1',
-    user: {
-      id: 'user-001' as AuthSession['user']['id'],
-      username: 'lin.wei',
-      displayName: '林薇',
-      email: 'lin.wei@example.com',
+    account: {
+      id: 'acc-001' as AccountId,
+      username: 'chen.yu',
+      displayName: '陈宇',
+      email: 'chen.yu@example.com',
+      phone: '13800000002',
       status: 'active',
-      roleNames: ['平台管理员'],
+      tenantId: 'tenant-holding' as TenantId,
+      dataScope: 'tenant',
+      platformAdmin: false,
+      legalEntityIds: ['le-hq' as LegalEntityId],
+      orgIds: [],
+      roleIds: [],
+      roleNames: ['集团管理员'],
+      legalEntityNames: ['集团总部', '华东公司']
     },
     permissions: ['*'],
-    tenants: [{ id: 'tenant-main' as TenantId, name: '总部空间', code: 'HQ', status: 'active' }],
-    currentTenantId: 'tenant-main' as TenantId,
+    tenants: [{ id: 'tenant-holding' as TenantId, name: '汉唐控股集团', code: 'HANTANG', mode: 'group', plan: 'enterprise', contact: '', status: 'active' }],
+    currentTenantId: 'tenant-holding' as TenantId,
+    legalEntities: [
+      { id: 'le-hq' as LegalEntityId, tenantId: 'tenant-holding' as TenantId, parentId: '', type: 'GROUP', name: '集团总部', code: 'HT-HQ', address: '', status: 'active' },
+      { id: 'le-east' as LegalEntityId, tenantId: 'tenant-holding' as TenantId, parentId: 'le-hq', type: 'COMPANY', name: '华东公司', code: 'HT-EAST', address: '', status: 'active' }
+    ],
+    currentLegalEntityId: 'le-hq' as LegalEntityId,
+    dataScope: 'tenant'
   }
 }
 
@@ -47,19 +61,21 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('token store', () => {
-  it('persists tokens and tenant, then clears them all', () => {
+  it('persists tokens and context, then clears them all', () => {
     const store = createTokenStore(memoryStorage())
     store.setTokens('access', 'refresh')
-    store.setTenant('tenant-main' as TenantId)
+    store.setContext('tenant-holding' as TenantId, 'le-east' as LegalEntityId)
 
     expect(store.getAccess()).toBe('access')
     expect(store.getRefresh()).toBe('refresh')
-    expect(store.getTenant()).toBe('tenant-main')
+    expect(store.getTenant()).toBe('tenant-holding')
+    expect(store.getLegalEntity()).toBe('le-east')
 
     store.clear()
     expect(store.getAccess()).toBeNull()
     expect(store.getRefresh()).toBeNull()
     expect(store.getTenant()).toBeNull()
+    expect(store.getLegalEntity()).toBeNull()
   })
 })
 
@@ -77,17 +93,19 @@ describe('api client', () => {
       baseURL: 'http://api.test/api/v1',
       getAccessToken: () => store.getAccess(),
       getRefreshToken: () => store.getRefresh(),
-      getTenantId: () => 'tenant-main' as TenantId,
+      getTenantId: () => 'tenant-holding' as TenantId,
+      getLegalEntityId: () => 'le-east' as LegalEntityId,
       onTokens: (access, refresh) => store.setTokens(access, refresh),
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
-    await expect(client.request('users?page=1&pageSize=10')).resolves.toEqual({ items: [], total: 0 })
+    await expect(client.request('accounts?page=1&pageSize=10')).resolves.toEqual({ items: [], total: 0 })
     expect(fetchMock).toHaveBeenCalledTimes(3)
     const retryRequest = fetchMock.mock.calls[2]?.[0] as Request
-    expect(retryRequest.url).toBe('http://api.test/api/v1/users?page=1&pageSize=10')
+    expect(retryRequest.url).toBe('http://api.test/api/v1/accounts?page=1&pageSize=10')
     expect(retryRequest.headers.get('Authorization')).toBe('Bearer new-access')
-    expect(retryRequest.headers.get('X-Tenant-Id')).toBe('tenant-main')
+    expect(retryRequest.headers.get('X-Tenant-Id')).toBe('tenant-holding')
+    expect(retryRequest.headers.get('X-Legal-Entity-Id')).toBe('le-east')
     expect(store.getRefresh()).toBe('refresh-2')
   })
 
@@ -102,12 +120,13 @@ describe('api client', () => {
       getAccessToken: () => 'expired',
       getRefreshToken: () => 'refresh-1',
       getTenantId: () => null,
+      getLegalEntityId: () => null,
       onTokens: () => {},
       onAuthFailed,
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
-    await expect(client.request('users')).rejects.toBeInstanceOf(ApiError)
+    await expect(client.request('accounts')).rejects.toBeInstanceOf(ApiError)
     expect(onAuthFailed).toHaveBeenCalledOnce()
   })
 
@@ -131,20 +150,21 @@ describe('api client', () => {
       getAccessToken: () => store.getAccess(),
       getRefreshToken: () => store.getRefresh(),
       getTenantId: () => null,
+      getLegalEntityId: () => null,
       onTokens: (access, refresh) => store.setTokens(access, refresh),
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
     const results = await Promise.all([
-      client.request('users'),
+      client.request('accounts'),
       client.request('roles'),
-      client.request('tenants'),
+      client.request('tenants')
     ])
 
     expect(results).toEqual([
       { items: [], total: 0 },
       { items: [], total: 0 },
-      { items: [], total: 0 },
+      { items: [], total: 0 }
     ])
     // 三个并发 401 只应触发一次刷新，否则服务端会因轮换把彼此的刷新令牌作废。
     expect(refreshCalls).toHaveLength(1)
@@ -173,11 +193,12 @@ describe('api client', () => {
       getAccessToken: () => store.getAccess(),
       getRefreshToken: () => store.getRefresh(),
       getTenantId: () => null,
+      getLegalEntityId: () => null,
       onTokens: (access, refresh) => store.setTokens(access, refresh),
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
-    await expect(client.request('users')).resolves.toEqual({ items: [], total: 0 })
+    await expect(client.request('accounts')).resolves.toEqual({ items: [], total: 0 })
     // 令牌已被轮换过，不应再打 refresh，直接重放即可。
     expect(refreshCalls).toBe(0)
     expect(store.getRefresh()).toBe('refresh-2')
@@ -203,12 +224,13 @@ describe('api client', () => {
       getAccessToken: () => store.getAccess(),
       getRefreshToken: () => store.getRefresh(),
       getTenantId: () => null,
+      getLegalEntityId: () => null,
       onTokens: (access, refresh) => store.setTokens(access, refresh),
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
-    await expect(client.request('users')).resolves.toEqual({ items: [], total: 0 })
-    // 旧刷新响应携带的仍是旧租户，必须丢弃，只重放不覆盖。
+    await expect(client.request('accounts')).resolves.toEqual({ items: [], total: 0 })
+    // 旧刷新响应携带的仍是旧上下文，必须丢弃，只重放不覆盖。
     expect(store.getAccess()).toBe('tenant-access')
     expect(store.getRefresh()).toBe('refresh-3')
   })
@@ -227,34 +249,37 @@ describe('api client', () => {
       getAccessToken: () => store.getAccess(),
       getRefreshToken: () => store.getRefresh(),
       getTenantId: () => null,
+      getLegalEntityId: () => null,
       onTokens: (access, refresh) => store.setTokens(access, refresh),
       onAuthFailed,
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: fetchMock as unknown as typeof fetch
     })
 
-    await expect(client.request('users')).rejects.toBeInstanceOf(ApiError)
+    await expect(client.request('accounts')).rejects.toBeInstanceOf(ApiError)
     expect(onAuthFailed).not.toHaveBeenCalled()
     expect(store.getRefresh()).toBe('refresh-1')
   })
 })
 
 describe('http auth adapter', () => {
-  it('stores tokens on sign-in and clears them on sign-out failure', async () => {
+  it('stores tokens and context on sign-in and clears them on sign-out failure', async () => {
     const store: TokenStore = createTokenStore(memoryStorage())
     const client: ApiClient = {
       request: vi.fn().mockImplementation((path: string) => {
         if (path === 'auth/login') return Promise.resolve(loginResponse())
         if (path === 'auth/logout') return Promise.reject(new Error('offline'))
         return Promise.resolve(null)
-      }),
+      })
     }
     const auth = createHttpAuth(client, store)
 
-    const session = await auth.signIn({ username: 'lin.wei', password: 'admin123' })
-    expect(session.user.username).toBe('lin.wei')
+    const session = await auth.signIn({ username: 'chen.yu', password: 'admin123' })
+    expect(session.account.username).toBe('chen.yu')
+    expect(session.currentLegalEntityId).toBe('le-hq')
     expect(store.getAccess()).toBe('access-1')
     expect(store.getRefresh()).toBe('refresh-1')
-    expect(store.getTenant()).toBe('tenant-main')
+    expect(store.getTenant()).toBe('tenant-holding')
+    expect(store.getLegalEntity()).toBe('le-hq')
 
     await expect(auth.signOut()).rejects.toThrow('offline')
     expect(store.getAccess()).toBeNull()
@@ -265,6 +290,23 @@ describe('http auth adapter', () => {
     const auth = createHttpAuth({ request: vi.fn() } as unknown as ApiClient, store)
     await expect(auth.restore()).resolves.toBeNull()
   })
+
+  it('re-reads the session after switching legal entity', async () => {
+    const store = createTokenStore(memoryStorage())
+    store.setTokens('access-1', 'refresh-1')
+    const client: ApiClient = {
+      request: vi.fn().mockImplementation((path: string) => {
+        if (path === 'auth/switch-legal-entity') return Promise.resolve({ token: 'access-2', refreshToken: 'refresh-2' })
+        if (path === 'auth/restore') return Promise.resolve(loginResponse())
+        return Promise.resolve(null)
+      })
+    }
+    const auth = createHttpAuth(client, store)
+
+    const session = await auth.switchLegalEntity?.('le-east' as LegalEntityId)
+    expect(session?.currentTenantId).toBe('tenant-holding')
+    expect(store.getAccess()).toBe('access-2')
+  })
 })
 
 describe('http services adapter', () => {
@@ -272,13 +314,13 @@ describe('http services adapter', () => {
     const request = vi.fn().mockResolvedValue({ items: [], total: 0 })
     const services = createHttpServices({ request } as unknown as ApiClient)
 
-    await services.base.users.list({ page: 2, pageSize: 5, search: '林' })
-    expect(request).toHaveBeenCalledWith('users?page=2&pageSize=5&search=%E6%9E%97')
+    await services.base.accounts.list({ page: 2, pageSize: 5, search: '林', legalEntityId: 'le-east' })
+    expect(request).toHaveBeenCalledWith('accounts?page=2&pageSize=5&search=%E6%9E%97&legalEntityId=le-east')
 
-    await services.base.users.updateStatus('user-001' as AuthSession['user']['id'], 'disabled')
-    expect(request).toHaveBeenCalledWith('users/user-001/status', {
+    await services.base.accounts.updateStatus('acc-001' as AccountId, 'disabled')
+    expect(request).toHaveBeenCalledWith('accounts/acc-001/status', {
       method: 'PATCH',
-      body: '{"status":"disabled"}',
+      body: '{"status":"disabled"}'
     })
   })
 })

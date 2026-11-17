@@ -1,18 +1,20 @@
-import type { TenantId } from '@unoadmin/core'
+import type { LegalEntityId, TenantId } from '@unoadmin/core'
 
-/** TokenStore 保存访问令牌、刷新令牌与当前租户，供所有 HTTP 适配器共享。 */
+/** TokenStore 保存访问令牌、刷新令牌与当前上下文，供所有 HTTP 适配器共享。 */
 export interface TokenStore {
   getAccess(): string | null
   getRefresh(): string | null
   getTenant(): TenantId | null
+  getLegalEntity(): LegalEntityId | null
   setTokens(access: string, refresh?: string): void
-  setTenant(id: TenantId): void
+  setContext(tenant: TenantId | null, legalEntity: LegalEntityId | null): void
   clear(): void
 }
 
 const ACCESS_KEY = 'unoadmin.accessToken'
 const REFRESH_KEY = 'unoadmin.refreshToken'
 const TENANT_KEY = 'unoadmin.tenantId'
+const ENTITY_KEY = 'unoadmin.legalEntityId'
 
 /** 在测试或隐私模式下退化为内存存储，避免 localStorage 不可用时崩溃。 */
 function resolveStorage(): Storage | null {
@@ -23,7 +25,7 @@ function resolveStorage(): Storage | null {
   }
 }
 
-/** createTokenStore 创建令牌存储；不传 storage 时使用浏览器 localStorage。 */
+/** 创建令牌存储；不传 storage 时使用浏览器 localStorage。 */
 export function createTokenStore(storage: Storage | null = resolveStorage()): TokenStore {
   let memory: Record<string, string> = {}
 
@@ -41,17 +43,24 @@ export function createTokenStore(storage: Storage | null = resolveStorage()): To
     getAccess: () => read(ACCESS_KEY),
     getRefresh: () => read(REFRESH_KEY),
     getTenant: () => (read(TENANT_KEY) as TenantId | null) ?? null,
+    getLegalEntity: () => (read(ENTITY_KEY) as LegalEntityId | null) ?? null,
     setTokens(access, refresh) {
       write(ACCESS_KEY, access)
       if (refresh) write(REFRESH_KEY, refresh)
     },
-    setTenant: (id) => write(TENANT_KEY, id),
+    setContext(tenant, legalEntity) {
+      if (tenant) write(TENANT_KEY, tenant)
+      else remove(TENANT_KEY)
+      if (legalEntity) write(ENTITY_KEY, legalEntity)
+      else remove(ENTITY_KEY)
+    },
     clear() {
       remove(ACCESS_KEY)
       remove(REFRESH_KEY)
       remove(TENANT_KEY)
+      remove(ENTITY_KEY)
       memory = {}
-    },
+    }
   }
 }
 
